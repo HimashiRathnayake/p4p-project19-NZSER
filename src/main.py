@@ -1,112 +1,21 @@
-import os
 import numpy as np
-import torch
-import torch.nn as nn
+
 import glob
-from utils.audio_utils import get_audio_chunks
 from utils.display_utils import map_w2v_to_quadrant
 from utils.jl_utils import load_jl
+from utils.msp_utils import load_msp, test_msp
 from utils.recola_utils import load_recola
 from utils.metrics import ccc
 from scipy.io.wavfile import read
 from librosa import load
-from transformers import Wav2Vec2Processor
-from transformers.models.wav2vec2.modeling_wav2vec2 import (
-    Wav2Vec2Model,
-    Wav2Vec2PreTrainedModel,
-)
 
-from utils.semaine_utils import prune_semaine
+from utils.semaine_utils import load_semaine, prune_semaine
 
-load_jl()
-load_recola()
-prune_semaine()
-class RegressionHead(nn.Module):
-    r"""Classification head."""
-
-    def __init__(self, config):
-
-        super().__init__()
-
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.final_dropout)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-
-        x = features
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-
-        return x
-
-
-class EmotionModel(Wav2Vec2PreTrainedModel):
-    r"""Speech emotion classifier."""
-
-    def __init__(self, config):
-
-        super().__init__(config)
-
-        self.config = config
-        self.wav2vec2 = Wav2Vec2Model(config)
-        self.classifier = RegressionHead(config)
-        self.init_weights()
-
-    def forward(
-            self,
-            input_values,
-    ):
-
-        outputs = self.wav2vec2(input_values)
-        hidden_states = outputs[0]
-        hidden_states = torch.mean(hidden_states, dim=1)
-        logits = self.classifier(hidden_states)
-
-        return hidden_states, logits
-
-
-def process_func(
-    x: np.ndarray,
-    sampling_rate: int,
-    embeddings: bool = False,
-) -> np.ndarray:
-    r"""Predict emotions or extract embeddings from raw audio signal."""
-
-    # run through processor to normalize signal
-    # always returns a batch, so we just get the first entry
-    # then we put it on the device
-    y = processor(x, sampling_rate=sampling_rate)
-    y = y['input_values'][0]
-    y = torch.from_numpy(y).to(device)
-
-    # run through model
-    with torch.no_grad():
-        y = model(y)[0 if embeddings else 1]
-
-    # convert to numpy
-    y = y.detach().cpu().numpy()
-
-    return y
-
-
-# define constants
-SAMPLING_RATE = 16000
-IS_JL = True
-
-# load model from hub
-device = 'cpu'
-# model_name = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
-model_name = os.path.dirname(os.path.realpath(__file__))
-processor = Wav2Vec2Processor.from_pretrained(model_name)
-model = EmotionModel.from_pretrained(model_name)
-
-# load all wav files in a directory into a list
-files = glob.glob("../data/msp_test/*.wav")
-signals = [[] for i in range(len(files))]
+# load_jl()
+# load_recola()
+# load_semaine()
+# load_msp()
+test_msp()
 
 # Create lists for storing annotations
 true_val = []
@@ -115,10 +24,10 @@ true_aro = []
 pred_val = []
 pred_aro = []
 
-for i, file in enumerate(files):
-    current_signal = load(file, sr=SAMPLING_RATE)
-    current_signal = [current_signal[0]]
-    signals[i].append(current_signal)
+# for i, file in enumerate(files):
+#     current_signal = load(file, sr=SAMPLING_RATE)
+#     current_signal = [current_signal[0]]
+#     signals[i].append(current_signal)
     # chunks = get_audio_chunks(
     #     signal=current_signal[0], frame_size=200, sampling_rate=16000, is_jl=False)
     # for chunk in chunks:
