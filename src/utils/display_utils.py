@@ -9,6 +9,11 @@ def map_w2v_to_quadrant(input_val: float, input_aro: float, input_dom: float) ->
     output_dom = (input_dom - 0.5) * 2
     return output_val, output_aro, output_dom
 
+def map_msp_to_quadrant(input_aro: float, input_val: float) -> float:
+    output_aro = (input_aro - 4) / 3
+    output_val = (input_val - 4) / 3
+    return output_aro, output_val
+
 def quadrant_chart(input_val: list[float], input_aro: list[float], true_val: list[float], true_aro: list[float], xtick_labels=None, ytick_labels=None, ax=None, frame_size: float =.02) -> None:
     '''
     Function to display dimensional emotion data on a quadrant chart
