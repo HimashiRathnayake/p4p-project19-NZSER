@@ -1,6 +1,7 @@
 import numpy as np
 
 import glob
+from model import load_model
 from utils.display_utils import map_w2v_to_quadrant
 from utils.jl_utils import load_jl
 from utils.msp_utils import load_msp, test_msp
@@ -15,7 +16,8 @@ from utils.semaine_utils import load_semaine, prune_semaine
 # load_recola()
 # load_semaine()
 # load_msp()
-test_msp()
+processor, model = load_model()
+test_msp(processor, model)
 
 # Create lists for storing annotations
 true_val = []

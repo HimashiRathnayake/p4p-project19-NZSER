@@ -11,8 +11,6 @@ from transformers.models.wav2vec2.modeling_wav2vec2 import (
 # define constants and global variables
 SAMPLING_RATE = 16000
 IS_JL = True
-processor = None
-model = None
 device = 'cpu'
 
 class RegressionHead(nn.Module):
@@ -62,16 +60,19 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
 
         return hidden_states, logits
 
-def load_model(model_path):
+def load_model():
     # load model from repo
     model_name = os.path.dirname(os.path.realpath(__file__))
     processor = Wav2Vec2Processor.from_pretrained(model_name)
     model = EmotionModel.from_pretrained(model_name)
+    return processor, model
 
 def process_func(
     x: np.ndarray,
     sampling_rate: int,
     embeddings: bool = False,
+    model: EmotionModel = None,
+    processor: Wav2Vec2Processor = None,
 ) -> np.ndarray:
     r"""Predict emotions or extract embeddings from raw audio signal."""
 
