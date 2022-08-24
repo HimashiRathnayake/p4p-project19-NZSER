@@ -60,6 +60,9 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
 
         return hidden_states, logits
 
+def train_model():
+    pass
+
 def load_model():
     # load model from repo
     model_name = os.path.dirname(os.path.realpath(__file__))
