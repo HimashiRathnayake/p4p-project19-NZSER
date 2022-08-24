@@ -64,6 +64,7 @@ def load_model():
     # load model from repo
     model_name = os.path.dirname(os.path.realpath(__file__))
     processor = Wav2Vec2Processor.from_pretrained(model_name)
+    print(model_name)
     model = EmotionModel.from_pretrained(model_name)
     return processor, model
 
