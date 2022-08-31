@@ -6,6 +6,7 @@ from librosa import load
 
 from model import load_model, process_func
 from utils.audio_utils import get_audio_chunks_recola
+from utils.display_utils import map_arrays_to_w2v
 from utils.metrics import ccc
 
 # Constants
@@ -74,32 +75,57 @@ def test_recola(processor, model):
     true_val = []
     pred_val = []
 
+    # Create lists for storing the CCC values
+    ccc_aro = []
+    ccc_val = []
+
     # Feed the recola data to the model generate predictions and store them in the lists
 
     for i, data in enumerate(recola_data):
+        print("Processing file " + str(i) + " out of " + str(len(recola_data)))
+        # Get the true arousal and valence values
         true_values = data[0]
+
+        # Averaeg the true values from the dataframe
+        true_values['aro_average'] = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1)
+        true_values['val_average'] = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1)
+
+        # Add true values to lists
+        true_aro_mapped = []
+        true_val_mapped = []
+        true_aro_mapped, true_val_mapped = map_arrays_to_w2v(true_values['aro_average'], true_values['val_average'])
+        true_aro.append(true_aro_mapped)
+        true_val.append(true_val_mapped)
+
         signal = [[data[1][0]]]  # format for process func
 
         chunks = get_audio_chunks_recola(
             signal=signal, frame_size=40, sampling_rate=SAMPLING_RATE)
 
-        true_values['aro_average'] = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1)
-        true_values['val_average'] = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1)
-
-        # Add predicted and true values to lists
-        true_aro.append(true_values['aro_average'])
-        true_val.append(true_values['val_average'])
+        # Store each files predicted arousal and valence
+        file_pred_aro = []
+        file_pred_val = []
 
         for chunk in chunks:
             chunk = np.array(chunk, dtype=np.float32)
             results = process_func([[chunk]], SAMPLING_RATE, model=model, processor=processor)
+            file_pred_aro.append(results[0][0])
+            file_pred_val.append(results[0][2])
 
-            
-            pred_aro.append(results[0][0])
-            pred_val.append(results[0][2])
+        min_array_length = min(len(true_aro[i]), len(file_pred_aro))
+        file_pred_aro = file_pred_aro[:min_array_length]
+        file_pred_val = file_pred_val[:min_array_length]
+        true_aro[i] = true_aro[i][:min_array_length]
+        true_val[i] = true_val[i][:min_array_length]
+
+        pred_aro.append(file_pred_aro)
+        pred_val.append(file_pred_val)
+
+        # Calculate the CCC for the predicted arousal and valence values
+        ccc_aro.append(ccc(np.array(true_aro[i]), np.array(file_pred_aro)))
+        ccc_val.append(ccc(np.array(true_val[i]), np.array(file_pred_val)))
+        print(f'Session {i} - CCC arousal: {ccc_aro[i]:.2f}, CCC valence: {ccc_val[i]:.2f}')
 
     # Calculate the CCC and print it
-    ccc_aro = ccc(np.array(true_aro), np.array(pred_aro))
-    ccc_val = ccc(np.array(true_val), np.array(pred_val))
-    print(f'CCC arousal: {ccc_aro:.2f}, CCC valence: {ccc_val:.2f}')
+    print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val
