@@ -1,9 +1,9 @@
 import numpy as np
 from model import load_model
-from utils.display_utils import map_w2v_to_quadrant
-from utils.jl_utils import test_jl
-from utils.recola_utils import test_recola
-from utils.semaine_utils import test_semaine
+from utils.display import map_w2v_to_quadrant
+from utils.jl import test_jl
+from utils.recola import test_recola
+from utils.semaine import test_semaine
 
 processor, model = load_model()
 # test_msp(processor, model)

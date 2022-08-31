@@ -4,10 +4,9 @@ import numpy as np
 import pandas as pd
 from librosa import load
 
-from model import load_model, process_func
-from utils.audio_utils import get_audio_chunks_recola
-from utils.display_utils import map_arrays_to_w2v
-from utils.metrics import ccc
+from model import process_func
+from utils.audio import get_audio_chunks_recola
+from utils.calc import ccc, map_arrays_to_w2v
 
 # Constants
 SAMPLING_RATE = 16000

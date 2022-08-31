@@ -6,8 +6,8 @@ from librosa import load
 from typing import List
 from model import process_func
 
-from utils.audio_utils import get_audio_chunks_jl
-from utils.metrics import ccc
+from utils.audio import get_audio_chunks_jl
+from utils.calc import ccc
 
 # Constants
 SAMPLING_RATE = 16000

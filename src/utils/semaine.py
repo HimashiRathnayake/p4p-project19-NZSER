@@ -3,10 +3,9 @@ import glob
 import pandas as pd
 import numpy as np
 from librosa import load
-from utils.metrics import ccc
 from model import process_func
-from utils.audio_utils import get_audio_chunks_semaine
-from utils.display_utils import map_arrays_to_w2v
+from utils.audio import get_audio_chunks_semaine
+from utils.calc import ccc, map_arrays_to_w2v
 
 semaine_data = []
 SAMPLING_RATE = 16000
@@ -15,7 +14,6 @@ SEMAINE_FRAME_SIZE = 40
 One time use only.
 '''
 # Renames folders in semaine that dont have at least 2 text files inside with a "NA"
-
 
 def prune_semaine():
     # Obtain root file paths
@@ -134,7 +132,5 @@ def test_semaine(processor, model):
 
         
     # Calculate the CCC for arousal and valence and print it
-    # ccc_aro = ccc(np.array(true_aro_mapped), np.array(pred_aro))
-    # ccc_val = ccc(np.array(true_val_mapped), np.array(pred_val))
     print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val

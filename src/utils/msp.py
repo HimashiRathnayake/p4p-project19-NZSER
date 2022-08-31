@@ -6,8 +6,7 @@ import pandas as pd
 import numpy as np
 from librosa import load
 from model import process_func, load_model
-from utils.display_utils import map_msp_to_w2v
-from utils.metrics import ccc
+from utils.calc import ccc, map_msp_to_w2v
 
 SAMPLING_RATE = 16000
 msp_data = []

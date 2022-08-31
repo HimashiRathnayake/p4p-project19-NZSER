@@ -1,6 +1,4 @@
-# Utils to process audio files before feeding to the model #
-
-from posixpath import split
+# Utility functions to process audio files before feeding to the model
 
 def get_audio_chunks_jl(signal, frame_size, sampling_rate):
     """
