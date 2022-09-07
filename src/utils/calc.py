@@ -31,3 +31,8 @@ def ccc(x, y):
     sxy = np.sum((x - x.mean())*(y - y.mean()))/x.shape[0]
     rhoc = 2*sxy / (np.var(x) + np.var(y) + (x.mean() - y.mean())**2)
     return rhoc
+
+# Calcuate the pearson correlation coefficient using numpy
+def pearson(x, y):
+    ''' Pearson Correlation Coefficient'''
+    return np.corrcoef(x, y)[0, 1]

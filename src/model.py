@@ -85,7 +85,7 @@ def load_model():
     processor = Wav2Vec2Processor.from_pretrained(model_name)
     print(model_name)
     model = EmotionModel.from_pretrained(model_name)
-    train_model(model)
+    # train_model(model)
     return processor, model
 
 def process_func(
