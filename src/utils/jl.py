@@ -152,7 +152,7 @@ def load_jl_results():
             if line == 'True arousal,Predicted arousal,True valence,Predicted valence\n':
                 continue
 
-            # Store the results of each file into a pandas dataframe
+            # Store the results of each prev file into a pandas dataframe
             if line.startswith('File:'):
                 # if this is the first file then skip
                 if len(file_results) != 0:

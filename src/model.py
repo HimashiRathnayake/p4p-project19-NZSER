@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import numpy as np
+from datasets import load_dataset, Audio
 from transformers import Wav2Vec2Processor
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
     Wav2Vec2Model,
@@ -60,7 +61,22 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
 
         return hidden_states, logits
 
-def train_model():
+def train_model(model: EmotionModel):
+    r"""Train model."""
+    file_path = os.path.realpath(os.path.join(
+    os.getcwd(), os.path.dirname(__file__)))
+    root = (os.path.dirname(os.path.dirname(file_path)))
+
+    # test = load_dataset(root + "/data/recola/RECOLA-Audio-recordings/")
+    x = model.train(True)
+
+    # load data from data loader
+    
+    # Load in a custom dataset to the huggingface dataset format
+    # https://huggingface.co/docs/datasets/loading_datasets.html#loading-a-local-dataset
+    # https://huggingface.co/docs/datasets/loading_datasets.html#dataset-dict
+    
+
     pass
 
 def load_model():
@@ -69,6 +85,7 @@ def load_model():
     processor = Wav2Vec2Processor.from_pretrained(model_name)
     print(model_name)
     model = EmotionModel.from_pretrained(model_name)
+    train_model(model)
     return processor, model
 
 def process_func(

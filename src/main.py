@@ -1,15 +1,17 @@
 import numpy as np
-from model import load_model
-from utils.display import map_w2v_to_quadrant
-from utils.jl import test_jl
-from utils.recola import test_recola
+from model import load_model, train_model
+from utils.jl import test_jl, load_jl_results
+from utils.recola import recola_dataset, test_recola
 from utils.semaine import test_semaine
 
+x = recola_dataset()
 processor, model = load_model()
+train_model(model)
 # test_msp(processor, model)
 # test_recola(processor, model)
 # test_semaine(processor, model)
-test_jl(processor, model)
+# test_jl(processor, model)
+load_jl_results()
 
 # Create lists for storing annotations
 true_val = []

@@ -3,6 +3,8 @@ import glob
 import numpy as np
 import pandas as pd
 from librosa import load
+from datasets import load_dataset, Audio, Dataset
+from torch.utils.data import DataLoader 
 
 from model import process_func
 from utils.audio import get_audio_chunks_recola
@@ -128,3 +130,27 @@ def test_recola(processor, model):
     # Calculate the CCC and print it
     print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val
+
+def recola_dataset():
+    # Create dictionary for loading in Recola datasets for load_dataset
+
+    # Find all Recola audio file names
+    file_path = os.path.realpath(os.path.join(
+    os.getcwd(), os.path.dirname(__file__)))
+    root = (os.path.dirname(os.path.dirname(file_path)))
+    print(root)
+    wav_files = glob.glob(root + "/data/recola/RECOLA-Audio-recordings/*.wav")
+
+    # Create dictionary
+    audio_paths = []
+    for wav_file in wav_files:
+        audio_paths.append(wav_file)
+
+    recola_dict = {
+        'audio': audio_paths,
+    }
+
+    audio_dataset = Dataset.from_dict(recola_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
+    torch_data = DataLoader(audio_dataset, batch_size=1, shuffle=False)
+    print(torch_data)
+    return torch_data
