@@ -2,8 +2,9 @@ import os
 import torch
 import torch.nn as nn
 import numpy as np
-from datasets import load_dataset, Audio
+from datasets import load_dataset, Audio, Dataset
 from transformers import Wav2Vec2Processor
+from transformers.trainer import Trainer, TrainingArguments
 from transformers.models.wav2vec2.modeling_wav2vec2 import (
     Wav2Vec2Model,
     Wav2Vec2PreTrainedModel,
@@ -61,14 +62,28 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
 
         return hidden_states, logits
 
-def train_model(model: EmotionModel):
+def train_model(model: EmotionModel, trainDataset: Dataset, testDataset: Dataset):
     r"""Train model."""
     file_path = os.path.realpath(os.path.join(
     os.getcwd(), os.path.dirname(__file__)))
     root = (os.path.dirname(os.path.dirname(file_path)))
 
     # test = load_dataset(root + "/data/recola/RECOLA-Audio-recordings/")
-    x = model.train(True)
+    training_args = TrainingArguments(
+        output_dir=root + "/data/recola/training/",
+        num_train_epochs=2,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,)
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=trainDataset,
+        eval_dataset=testDataset,
+    )
+    trainer.train()
+    pass
+    # x = model.train(True)
 
     # load data from data loader
     
@@ -80,7 +95,7 @@ def train_model(model: EmotionModel):
     pass
 
 def load_model():
-    # load model from repo
+    # load model from local repo
     model_name = os.path.dirname(os.path.realpath(__file__))
     processor = Wav2Vec2Processor.from_pretrained(model_name)
     print(model_name)
