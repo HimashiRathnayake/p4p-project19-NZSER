@@ -4,11 +4,13 @@ import glob
 import pandas as pd
 import numpy as np
 from librosa import load
+import matplotlib.pyplot as plt
 from typing import List
 from model import process_func
 
 from utils.audio import get_audio_chunks_jl
-from utils.calc import ccc, pearson
+from utils.calc import ccc, map_arrays_to_quadrant, pearson
+from utils.display import quadrant_chart
 
 # Constants
 SAMPLING_RATE = 16000
@@ -231,10 +233,50 @@ def load_jl_results():
                 continue
             else:
                 # Remove the newline character from the end of the line and append to file_results
-                file_results.append(line.strip().split(','))
+                list_results = list(map(float, line.strip().split(',')))
+                file_results.append(list_results)
 
             
     return jl_results
+
+
+def diplay_jl_quandrant_chart(start_index: int, end_index: int):
+    # Load in the results of the JL-corpus test text file
+    jl_results = load_jl_results()
+    
+    if(start_index < 0 or start_index >= len(jl_results)):
+        print('Invalid start index')
+        return
+    
+    if(end_index < start_index or end_index >= len(jl_results)):
+        print('Invalid end index')
+        return
+    
+
+
+    # Iterate through each file and calculate the arousal and valence values
+    for i in range(start_index ,end_index):
+
+        results = jl_results[i][1]
+        # Retrieve true arousal and valence values from dataframe
+        true_aro = results['true_aro'].values.tolist()
+        true_val = results['true_val'].values.tolist()
+
+        # Retrieve predicted arousal and valence values from dataframe
+        pred_aro = results['pred_aro'].values.tolist()
+        pred_val = results['pred_val'].values.tolist()
+
+        # Map true arousal and valence values from [0, 1] -> [-1, 1]
+        pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
+        # Plot the results using the quadrant chart function
+        quadrant_chart(pred_val, pred_aro, true_val, true_aro,)
+        plt.figure(i)
+        plt.title('Arousal vs Valence', fontsize=16)
+        plt.ylabel('Arousal', fontsize=14)
+        plt.xlabel('Valence', fontsize=14)
+        plt.grid(True, animated=True, linestyle='--', alpha=0.5)
+    plt.show()
+
 
 
 

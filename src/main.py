@@ -1,6 +1,6 @@
 import numpy as np
 from model import load_model, train_model
-from utils.jl import test_jl, load_jl_results
+from utils.jl import diplay_jl_quandrant_chart, test_jl, load_jl_results
 from utils.recola import recola_dataset, test_recola
 from utils.semaine import test_semaine
 
@@ -10,8 +10,9 @@ processor, model = load_model()
 # test_msp(processor, model)
 # test_recola(processor, model)
 # test_semaine(processor, model)
-test_jl(processor, model)
-load_jl_results()
+# test_jl(processor, model)
+# load_jl_results()
+diplay_jl_quandrant_chart(10,20)
 
 # Create lists for storing annotations
 true_val = []

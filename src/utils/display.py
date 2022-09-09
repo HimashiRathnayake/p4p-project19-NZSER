@@ -10,7 +10,6 @@ def quadrant_chart(input_val: List[float], input_aro: List[float], true_val: Lis
     '''
     # Check validity of input values
     val_size = len(input_val)
-    print(val_size)
     if val_size != len(input_aro) or val_size != len(true_val) or val_size != len(true_aro):
         raise ValueError("Input values must be of same length")
 
