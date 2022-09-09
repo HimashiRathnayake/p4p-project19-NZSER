@@ -87,7 +87,7 @@ def test_recola(processor, model):
         # Get the true arousal and valence values
         true_values = data[0]
 
-        # Averaeg the true values from the dataframe
+        # Average the true values from the dataframe
         true_values['aro_average'] = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1)
         true_values['val_average'] = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1)
 
@@ -143,14 +143,52 @@ def recola_dataset():
 
     # Create dictionary
     audio_paths = []
-    for wav_file in wav_files:
+    for i, wav_file in enumerate(wav_files):
         audio_paths.append(wav_file)
 
-    recola_dict = {
-        'audio': audio_paths,
+    # Load in the Recola annotations
+    print("Loading Recola annotations")
+    recola_data = load_recola()
+    print("Finished loading Recola annotations")
+    train_dict = {
+            'audio': [],
+            'arousal': [],
+            'valence': []
     }
+    test_dict = {
+            'audio': [],
+            'arousal': [],
+            'valence': []
+    }
+    
+    # Add the recola annotations to train_dict and test_dict
+    for i in range(0, 18):
+        true_values = recola_data[i][0]
 
-    audio_dataset = Dataset.from_dict(recola_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
-    torch_data = DataLoader(audio_dataset, batch_size=1, shuffle=False)
-    print(torch_data)
-    return torch_data
+        # Average the true values from the dataframe
+        true_aro_avg = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1).to_numpy()
+        true_val_avg = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1).to_numpy()
+
+        # Add true values to lists
+        train_dict['arousal'].append(true_aro_avg)
+        train_dict['valence'].append(true_val_avg)
+        train_dict['audio'].append(audio_paths[i])
+
+    for i in range(18, 23):
+        true_values = recola_data[i][0]
+
+        # Average the true values from the dataframe
+        true_aro_avg = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1).to_numpy()
+        true_val_avg = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1).to_numpy()
+
+        # Add true values to lists
+        test_dict['arousal'].append(true_aro_avg)
+        test_dict['valence'].append(true_val_avg)
+    
+
+    train_audio_dataset = Dataset.from_dict(train_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
+    train_audio_dataloader = DataLoader(train_audio_dataset, batch_size=1, shuffle=False)
+    test_audio_dataset = Dataset.from_dict(test_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
+    test_audio_dataloader = DataLoader(test_audio_dataset, batch_size=1, shuffle=False)
+
+    return train_audio_dataset, train_audio_dataloader, test_audio_dataset, test_audio_dataloader
