@@ -5,18 +5,18 @@ from utils.jl import display_jl_quadrant_chart, display_jl_quadrant_chart_senten
 from utils.recola import recola_dataset, test_recola
 from utils.semaine import test_semaine
 
-# audio_dataset, audio_dataloader = recola_dataset()
+train_dataset, train_dataloader, test_dataset, test_dataloader = recola_dataset()
 processor, model = load_model()
-# train_model(model, audio_dataset)
+train_model(model, train_dataset, test_dataset)
 # test_msp(processor, model)
 # test_recola(processor, model)
 # test_semaine(processor, model)
-# test_jl(processor, model)
-test_jl_sentence(processor, model)
-load_jl_sentence()
+test_jl(processor, model)
+# test_jl_sentence(processor, model)
+# load_jl_sentence()
 # load_jl_results()
-# display_jl_quadrant_chart(10,20)
-display_jl_quadrant_chart_sentence()
+display_jl_quadrant_chart(10,20)
+# display_jl_quadrant_chart_sentence()
 
 # Create lists for storing annotations
 true_val = []

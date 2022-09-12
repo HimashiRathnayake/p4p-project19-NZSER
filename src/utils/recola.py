@@ -184,6 +184,7 @@ def recola_dataset():
         # Add true values to lists
         test_dict['arousal'].append(true_aro_avg)
         test_dict['valence'].append(true_val_avg)
+        test_dict['audio'].append(audio_paths[i])
     
 
     train_audio_dataset = Dataset.from_dict(train_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
