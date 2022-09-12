@@ -261,6 +261,7 @@ def display_jl_quadrant_chart(start_index: int, end_index: int):
 
         # Map true arousal and valence values from [0, 1] -> [-1, 1]
         pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
+        true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
         # Plot the results using the quadrant chart function
         quadrant_chart(pred_val, pred_aro, true_val, true_aro,)
         plt.figure(i)
