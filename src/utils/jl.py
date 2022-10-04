@@ -230,13 +230,19 @@ def load_jl_results():
                 list_results = list(map(float, line.strip().split(',')))
                 file_results.append(list_results)
 
+                
+
             
     return jl_results
+
+
 
 
 def display_jl_quadrant_chart(start_index: int, end_index: int):
     # Load in the results of the JL-corpus test text file
     jl_results = load_jl_results()
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
     
     if(start_index < 0 or start_index >= len(jl_results)):
         print('Invalid start index')
@@ -248,7 +254,7 @@ def display_jl_quadrant_chart(start_index: int, end_index: int):
     
 
     # Iterate through each file and calculate the arousal and valence values
-    for i in range(start_index ,end_index):
+    for i in range(start_index ,end_index + 1): # Python exclusive of end index
 
         results = jl_results[i][1]
         # Retrieve true arousal and valence values from dataframe
@@ -264,12 +270,14 @@ def display_jl_quadrant_chart(start_index: int, end_index: int):
         true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
         # Plot the results using the quadrant chart function
         quadrant_chart(pred_val, pred_aro, true_val, true_aro,)
-        plt.figure(i)
+        # plt.figure(i)
         plt.title('Arousal vs Valence', fontsize=16)
         plt.ylabel('Arousal', fontsize=14)
         plt.xlabel('Valence', fontsize=14)
         plt.grid(True, animated=True, linestyle='--', alpha=0.5)
-    plt.show()
+        # Save the plot as a png file with the index of the file as the filename
+        plt.savefig(f'{file_path}/jl_plts/jl_results_f1_{i}.png')
+        plt.close()
 
 
 def test_jl_sentence(processor, model):
