@@ -129,8 +129,10 @@ def test_semaine(processor, model):
                     [[chunk]], SAMPLING_RATE, model=model, processor=processor)
                 sess_pred_aro.append(results[0][0])
                 sess_pred_val.append(results[0][2])
+                if j >= len(true_aro_mapped[0]):
+                    break
                 f.write(
-                    f"{true_aro_mapped[j]},{results[0][0]},{true_val_mapped[j]},{results[0][2]}\n")
+                    f"{true_aro_mapped[0][j]},{results[0][0]},{true_val_mapped[0][j]},{results[0][2]}\n")
 
             # Append the true and predicted arousal and valence values to the lists after matching the size of the lists
             min_array_len = min(len(true_aro_mapped[i]), len(sess_pred_aro))
