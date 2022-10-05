@@ -1,5 +1,6 @@
 import os
 import glob
+import shutil
 import pandas as pd
 import numpy as np
 from librosa import load
@@ -64,8 +65,6 @@ def load_semaine():
                 if (file.find("User HeadMounted") > 0):
                     signals.append(load(file, sr=SAMPLING_RATE))
 
-    print(dbgO1)
-    print(dbgO2)
     # Merge WAV files and their corresponding annotations
     for i, df in enumerate(dfs):
         semaine_data.append([df, signals[i]])
@@ -252,3 +251,49 @@ def plot_semaine_results(start_index: int, end_index: int):
         plt.grid(True, animated=True, linestyle='--', alpha=0.5)
         # Save the plot as a png file with the index of the file as the filename
         plt.savefig(f'{file_path}/semaine_plts/semaine_results_{i}.png')
+
+
+# Move all semaine wav files into a single folder and name them to the session number
+def move_semaine_wav_files():
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    sessions_path = root + "/data/semaine/sessions"
+    destination_path = root + "/data/semaine/semaine_all_files/"
+
+    # Create a folder to store all the wav files
+    if not os.path.exists(destination_path):
+        os.makedirs(destination_path)
+
+    # Iterate through session folders and load wav files for each session
+    for folder in os.listdir(sessions_path):
+        if not folder.endswith("_NA"):
+            for file in glob.glob(sessions_path + "/" + folder + "/*.wav"):
+                if (file.find("User HeadMounted") > 0):
+                    # Rename the file to have the session number before copying
+                    new_file_name = folder + ".wav"
+                    shutil.copy(file, destination_path)
+                    # Rename file to the new file name
+                    os.rename(destination_path + os.path.basename(file),
+                              destination_path + new_file_name)
+
+
+# Move semaine annotatoin files into a single folder and name them to the session number
+def move_semaine_annotation_files():
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    annotations_path = root + "/data/semaine/TrainingInput"
+    destination_path = root + "/data/semaine/semaine_all_files/"
+
+    # Create a folder to store all the annotation files
+    if not os.path.exists(destination_path):
+        os.makedirs(destination_path)
+    # Iterate through TrainingInput folder for CSV annotations
+    for folder in os.listdir(annotations_path):
+        file_name = annotations_path + "/" + folder + '/TU_VA.csv'
+        new_file_name = folder + ".csv"
+        shutil.copy(file_name, destination_path)
+        # Rename file to the new file name
+        os.rename(destination_path + os.path.basename(file_name),
+                  destination_path + new_file_name)
