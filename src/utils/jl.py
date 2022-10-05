@@ -1,12 +1,16 @@
 from datetime import datetime
 import os
 import glob
+import shutil
+import datasets
 import pandas as pd
 import numpy as np
 from librosa import load
 import matplotlib.pyplot as plt
 from typing import List
 from model import process_func
+
+import audformat
 
 from utils.audio import get_audio_chunks_jl
 from utils.calc import ccc, map_arrays_to_quadrant, pearson
@@ -235,9 +239,6 @@ def load_jl_results():
             
     return jl_results
 
-
-
-
 def display_jl_quadrant_chart(start_index: int, end_index: int):
     # Load in the results of the JL-corpus test text file
     jl_results = load_jl_results()
@@ -278,7 +279,6 @@ def display_jl_quadrant_chart(start_index: int, end_index: int):
         # Save the plot as a png file with the index of the file as the filename
         plt.savefig(f'{file_path}/jl_plts/jl_results_f1_{i}.png')
         plt.close()
-
 
 def test_jl_sentence(processor, model):
     f1, m2 = load_jl()
@@ -331,7 +331,6 @@ def test_jl_sentence(processor, model):
         # Print the CCC values for f1
         print(f'F1 - CCC arousal: {f1_aro_cc:.2f}, CCC valence: {f1_val_cc:.2f}''')
     
-
 def load_jl_sentence():
     # Load in the results of the JL-corpus test text file
     df = pd.DataFrame(columns=['true_aro', 'pred_aro', 'true_val', 'pred_val'])
@@ -347,7 +346,6 @@ def load_jl_sentence():
 
            
     return df
-
 
 def display_jl_quadrant_chart_sentence():
     # Load in the results of the JL-corpus test text file
@@ -372,10 +370,191 @@ def display_jl_quadrant_chart_sentence():
     plt.grid(True, animated=True, linestyle='--', alpha=0.5)
     plt.show()
 
+# Move all jl wav files into a single folder
+def move_jl_wav_files():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
 
+    f1_bdls, m2_bdls = load_jl_wav_files()
 
+    # Iterate through each file and copy it to the jl_wav_files folder
+    for fl_bdl in f1_bdls:
+        shutil.copy(f'{root}/data/jl/female1_all_a_1/{fl_bdl}_bndl/{fl_bdl}.wav', f'{root}/data/jl/jl_wav_files/')
+
+    for m2_bdl in m2_bdls:
+        shutil.copy(f'{root}/data/jl/male2_all_a_1/{m2_bdl}_bndl/{m2_bdl}.wav', f'{root}/data/jl/jl_wav_files/')
+
+def load_jl_wav_files():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+
+    # Load csv files with annotations
+    csv_files = glob.glob(root + "/data/jl/*.csv")
+    
+    # f1 = female1, m2 = male2, df = dataframe
+    f1_aro_df = pd.read_csv(csv_files[4])
+    f1_val_df = pd.read_csv(csv_files[5])
+    m2_aro_df = pd.read_csv(csv_files[6])
+    m2_val_df = pd.read_csv(csv_files[7])
+    
+    f1_aro_df = f1_aro_df[['bundle', 'start', 'end', 'labels' ]]
+    f1_aro_df = f1_aro_df.rename(columns = {'labels': 'arousal'})
+    f1_val_df = f1_val_df['labels']
+    f1_val_df = f1_val_df.rename('valence')
+
+    m2_aro_df = m2_aro_df[['bundle', 'labels']]
+    m2_aro_df = m2_aro_df.rename(columns = {'labels': 'arousal'})
+    m2_val_df = m2_val_df['labels']
+    m2_val_df = m2_val_df.rename('valence')
+
+    f1_mer_df = pd.concat([f1_aro_df, f1_val_df], axis=1)
+    m2_mer_df = pd.concat([m2_aro_df, m2_val_df], axis=1)
+
+    # Merge the two dataframes
+    jl_df = pd.concat([f1_mer_df, m2_mer_df], axis=0)
+
+    # Remove duplicate bundle names and store in list
+    f1_bdls = list(dict.fromkeys(f1_mer_df['bundle'].tolist()))
+    m2_bdls = list(dict.fromkeys(m2_mer_df['bundle'].tolist()))
+
+    return f1_bdls, m2_bdls
+
+def transform_jl_dataset():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+
+    # Load csv files with annotations
+    csv_files = glob.glob(root + "/data/jl/*.csv")
+    
+    # f1 = female1, m2 = male2, df = dataframe
+    f1_aro_df = pd.read_csv(csv_files[4])
+    f1_val_df = pd.read_csv(csv_files[5])
+    m2_aro_df = pd.read_csv(csv_files[6])
+    m2_val_df = pd.read_csv(csv_files[7])
+    
+    f1_aro_df = f1_aro_df[['bundle', 'start', 'end', 'labels' ]]
+    f1_aro_df = f1_aro_df.rename(columns = {'labels': 'arousal'})
+    f1_val_df = f1_val_df['labels']
+    f1_val_df = f1_val_df.rename('valence')
+
+    m2_aro_df = m2_aro_df[['bundle', 'start', 'end', 'labels']]
+    m2_aro_df = m2_aro_df.rename(columns = {'labels': 'arousal'})
+    m2_val_df = m2_val_df['labels']
+    m2_val_df = m2_val_df.rename('valence')
+
+    f1_mer_df = pd.concat([f1_aro_df, f1_val_df], axis=1)
+    m2_mer_df = pd.concat([m2_aro_df, m2_val_df], axis=1)
+
+    # # Merge the two dataframes
+    # jl_df = pd.concat([f1_mer_df, m2_mer_df], axis=0)
+
+    # Store annotations only in a df
+    f1_annotations_df = f1_mer_df[['arousal', 'valence']]
+    m2_annotations_df = m2_mer_df[['arousal', 'valence']]
+
+    # Retrieve bundle column as list from df
+    # filenames = jl_df['bundle'].tolist()
+    f1_filenames = f1_mer_df['bundle'].tolist()
+    m2_filenames = m2_mer_df['bundle'].tolist()
+
+    # Append jl_wav_files dir name to each filename along with the .wav file extension
+    jl_wav_files_dir = root + '\\data\\jl\\jl_wav_files\\'
+    f1_file = [jl_wav_files_dir + filename + '.wav' for filename in f1_filenames]
+    m2_file = [jl_wav_files_dir + filename + '.wav' for filename in m2_filenames]
+
+    # Store start and end times in lists
+    f1_start_times = f1_mer_df['start'].tolist()
+    f1_end_times = f1_mer_df['end'].tolist()
+    m2_start_times = m2_mer_df['start'].tolist()
+    m2_end_times = m2_mer_df['end'].tolist()
+
+    # Convert start and end times to from milliseconds to seconds
+    f1_start_times = [f1_start_time / 1000 for f1_start_time in f1_start_times]
+    f1_end_times = [f1_end_time / 1000 for f1_end_time in f1_end_times]
+    m2_start_times = [m2_start_time / 1000 for m2_start_time in m2_start_times]
+    m2_end_times = [m2_end_time / 1000 for m2_end_time in m2_end_times]
+
+    # Form a 70/30 train/test split
+    train_split_point = int(len(f1_aro_df) * 0.7)
+    f1_train_files = f1_file[:train_split_point]
+    f1_test_files = f1_file[train_split_point:]
+    f1_train_annotations = f1_annotations_df[:train_split_point]
+    f1_test_annotations = f1_annotations_df[train_split_point:]
+    f1_train_start_times = f1_start_times[:train_split_point]
+    f1_train_end_times = f1_end_times[:train_split_point]
+    f1_test_start_times = f1_start_times[train_split_point:]
+    f1_test_end_times = f1_end_times[train_split_point:]
+
+    train_split_point = int(len(m2_aro_df) * 0.7)
+    m2_train_files = m2_file[:train_split_point]
+    m2_test_files = m2_file[train_split_point:]
+    m2_train_annotations = m2_annotations_df[:train_split_point]
+    m2_test_annotations = m2_annotations_df[train_split_point:]
+    m2_train_start_times = m2_start_times[:train_split_point]
+    m2_train_end_times = m2_end_times[:train_split_point]
+    m2_test_start_times = m2_start_times[train_split_point:]
+    m2_test_end_times = m2_end_times[train_split_point:]
     
 
+    # test_files = file[train_split_point:]
+    # test_start_times = start_times[train_split_point:]
+    # test_end_times = end_times[train_split_point:]
+
+    # # Create annotations df for train and test sets
+    # train_annotations_df = annotations_df[:train_split_point]
+    # test_annotations_df = annotations_df[train_split_point:]
+
+    # Merge the train and test annotation dataframes
+    train_annotations_df = pd.concat([f1_train_annotations, m2_train_annotations], axis=0)
+    test_annotations_df = pd.concat([f1_test_annotations, m2_test_annotations], axis=0)
+
+    # Merge the train and test file lists
+    train_files = f1_train_files + m2_train_files
+    test_files = f1_test_files + m2_test_files
+
+    # Merge the train and test start times
+    train_start_times = f1_train_start_times + m2_train_start_times
+    train_end_times = f1_train_end_times + m2_train_end_times
+    test_start_times = f1_test_start_times + m2_test_start_times
+    test_end_times = f1_test_end_times + m2_test_end_times
 
 
 
+    train_segmented_index = audformat.segmented_index(train_files, train_start_times, train_end_times)
+    test_segmented_index = audformat.segmented_index(test_files, test_start_times, test_end_times)
+
+    jl_train_series = pd.Series(
+        data=train_annotations_df.values.tolist(),
+        index=train_segmented_index,
+        dtype=object,
+        name='labels'
+    )
+
+    jl_test_series = pd.Series(
+        data=test_annotations_df.values.tolist(),
+        index=test_segmented_index,
+        dtype=object,
+        name='labels'
+    )
+
+    jl_train_series.name = 'labels'
+    jl_test_series.name = 'labels'
+
+    train_dataset_df = jl_train_series.reset_index()
+    test_dataset_df = jl_test_series.reset_index()
+
+    train_dataset_df.start = train_dataset_df.start.dt.total_seconds().astype('str')
+    train_dataset_df.end = train_dataset_df.end.dt.total_seconds().astype('str')
+    test_dataset_df.start = test_dataset_df.start.dt.total_seconds().astype('str')
+    test_dataset_df.end = test_dataset_df.end.dt.total_seconds().astype('str')
+    
+    train_dataset_df['input_values'] = train_dataset_df[['file', 'start', 'end']].values.tolist()
+    test_dataset_df['input_values'] = test_dataset_df[['file', 'start', 'end']].values.tolist()
+
+    train_dataset_df = train_dataset_df[['labels', 'input_values']]
+    test_dataset_df = test_dataset_df[['labels', 'input_values']]
+
+    train_dataset = datasets.Dataset.from_pandas(train_dataset_df)
+    test_dataset = datasets.Dataset.from_pandas(test_dataset_df)
+    
+    return train_dataset, test_dataset
