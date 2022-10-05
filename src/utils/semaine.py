@@ -5,8 +5,11 @@ import numpy as np
 from librosa import load
 from model import process_func
 from utils.audio import get_audio_chunks_semaine
-from utils.calc import ccc, map_arrays_to_w2v, pearson
+from utils.calc import ccc, map_arrays_to_w2v, pearson, map_arrays_to_quadrant
 from datetime import datetime
+import matplotlib.pyplot as plt
+
+from utils.display import quadrant_chart
 
 
 semaine_data = []
@@ -158,20 +161,94 @@ def test_semaine(processor, model):
                 f'Session {i} - Pearson arousal: {pearson_aro[i]:.2f}, Pearson valence: {pearson_val[i]:.2f}')
 
             # Concat ccc and pearson values of each file to dataframe
-            df = df.append({'bundle': data[0]['bundle'][0], 'pearson arousal': pearson_aro[i],
-                           'pearson valence': pearson_val[i], 'ccc arousal': ccc_aro[i], 'ccc valence': ccc_val[i]}, ignore_index=True)
+            df = pd.concat([df, pd.DataFrame({'bundle': data[0]['bundle'][0], 'pearson arousal': pearson_aro[i], 'pearson valence': pearson_val[i],
+                                              'ccc arousal': ccc_aro[i], 'ccc valence': ccc_val[i]}, index=[0])], ignore_index=True)
+
             # Print the average ccc and pearsons accuracy for each bundle of the dataframe and save to the results file
             print(df.groupby('bundle').mean())
-            f.write(
-                f"Session {i} average accuracy:\n{df.groupby('bundle').mean()}\n")
-
         # Calculate the CCC for arousal and valence and print it
         # print(
         #     f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
         # print(
         #     f'Avg. Semaine Acc. per session - Pearson arousal: {np.mean(pearson_aro):.2f}, Pearson valence: {np.mean(pearson_val):.2f}')
 
-        filename = f'seamine_results_ - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.csv'
+        filename = f'semaine_results_ - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.csv'
         df.to_csv(filename, index=False)
 
     return ccc_aro, ccc_val
+
+
+def load_semaine_results():
+    # Load in the results of the semaine corpus txt file
+    semaine_results = []
+    file_results = []
+
+    with open('semaine_results.txt', 'r', encoding='utf-8') as f:
+        for line in f:
+            # Skip the first line
+
+            if line == 'True arousal,Predicted arousal,True valence,Predicted valence\n':
+                continue
+
+            # Store the results of each prev file into a pandas dataframe
+            if line.startswith('Session'):
+                # if this is the first file then skip
+                if len(file_results) != 0:
+                    df = pd.DataFrame(file_results, columns=[
+                                      'true_aro', 'pred_aro', 'true_val', 'pred_val'])
+                    semaine_results.append(df)
+                    file_results = []
+                continue
+            else:
+                # Remove the newline character from the end of the line and append to file_results
+                list_results = list(map(float, line.strip().split(',')))
+                file_results.append(list_results)
+
+    return semaine_results
+
+
+def plot_semaine_results(start_index: int, end_index: int):
+    # Load in the results of the semaine corpus txt file
+    semaine_results = load_semaine_results()
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+
+    if(start_index < 0 or start_index >= len(semaine_results)):
+        print('Invalid start index')
+        return
+
+    if(end_index < start_index or end_index >= len(semaine_results)):
+        print('Invalid end index')
+        return
+
+    # Iterate through each file and calculate the arousal and valence values
+    for i in range(start_index, end_index + 1):
+
+        results = semaine_results[i]
+        # Retrieve true arousal and valence values from dataframe
+        true_aro = results['true_aro'].values.tolist()
+        true_val = results['true_val'].values.tolist()
+
+        # Retrieve predicted arousal and valence values from dataframe
+        pred_aro = results['pred_aro'].values.tolist()
+        pred_val = results['pred_val'].values.tolist()
+
+        # Map true arousal and valence values from [0, 1] -> [-1, 1]
+        pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
+        true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
+
+        # Take every 500th value of the true and predicted arousal and valence values
+        true_aro = true_aro[::500]
+        true_val = true_val[::500]
+        pred_aro = pred_aro[::500]
+        pred_val = pred_val[::500]
+
+        # Plot the results using the quadrant chart function
+        quadrant_chart(pred_val, pred_aro, true_val, true_aro)
+        plt.figure(i)
+        plt.title('Arousal vs Valence', fontsize=16)
+        plt.ylabel('Arousal', fontsize=14)
+        plt.xlabel('Valence', fontsize=14)
+        plt.grid(True, animated=True, linestyle='--', alpha=0.5)
+        # Save the plot as a png file with the index of the file as the filename
+        plt.savefig(f'{file_path}/semaine_plts/semaine_results_{i}.png')
