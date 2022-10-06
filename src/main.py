@@ -5,10 +5,16 @@ from utils.jl import display_jl_quadrant_chart, display_jl_quadrant_chart_senten
 from utils.recola import recola_dataset, test_recola
 from utils.semaine import move_semaine_annotation_files, move_semaine_wav_files, test_semaine
 
-# train_dataset, test_dataset = transform_jl_dataset()
+# Load data
+arousalTrainDataset, arousalTestDataset = transform_jl_dataset('arousal')
+valenceTrainDataset, valenceTestDataset = transform_jl_dataset('valence')
 # train_dataset, train_dataloader, test_dataset, test_dataloader = recola_dataset()
 # processor, model = load_model()
-# train_model(train_dataset, test_dataset)
+train_model(arousalTrainDataset=arousalTrainDataset, 
+            arousalTestDataset=arousalTestDataset, 
+            valenceTrainDataset=valenceTrainDataset, 
+            valenceTestDataset=valenceTestDataset
+            )
 # test_msp(processor, model)
 # test_recola(processor, model)
 # test_semaine(processor, model)
@@ -18,8 +24,8 @@ from utils.semaine import move_semaine_annotation_files, move_semaine_wav_files,
 # load_jl_results()
 # display_jl_quadrant_chart(10,20)
 # display_jl_quadrant_chart_sentence()
-move_semaine_wav_files()
-move_semaine_annotation_files()
+# move_semaine_wav_files()
+# move_semaine_annotation_files()
 
 # Create lists for storing annotations
 true_val = []

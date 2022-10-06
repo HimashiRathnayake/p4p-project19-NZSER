@@ -419,7 +419,11 @@ def load_jl_wav_files():
 
     return f1_bdls, m2_bdls
 
-def transform_jl_dataset():
+def transform_jl_dataset(emotion: str):
+    # Check input is either arousal or valence
+    if emotion != 'arousal' and emotion != 'valence':
+        raise ValueError('Please enter either arousal or valence')
+
     file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
 
@@ -433,24 +437,26 @@ def transform_jl_dataset():
     m2_val_df = pd.read_csv(csv_files[7])
     
     f1_aro_df = f1_aro_df[['bundle', 'start', 'end', 'labels' ]]
-    f1_aro_df = f1_aro_df.rename(columns = {'labels': 'arousal'})
-    f1_val_df = f1_val_df['labels']
-    f1_val_df = f1_val_df.rename('valence')
+    f1_aro_df = f1_aro_df.rename(columns = {'labels': emotion})
+    # f1_val_df = f1_val_df['labels']
+    # f1_val_df = f1_val_df.rename('valence')
 
     m2_aro_df = m2_aro_df[['bundle', 'start', 'end', 'labels']]
-    m2_aro_df = m2_aro_df.rename(columns = {'labels': 'arousal'})
-    m2_val_df = m2_val_df['labels']
-    m2_val_df = m2_val_df.rename('valence')
+    m2_aro_df = m2_aro_df.rename(columns = {'labels': emotion})
+    # m2_val_df = m2_val_df['labels']
+    # m2_val_df = m2_val_df.rename('valence')
 
-    f1_mer_df = pd.concat([f1_aro_df, f1_val_df], axis=1)
-    m2_mer_df = pd.concat([m2_aro_df, m2_val_df], axis=1)
+    # f1_mer_df = pd.concat([f1_aro_df, f1_val_df], axis=1)
+    # m2_mer_df = pd.concat([m2_aro_df, m2_val_df], axis=1)
+    f1_mer_df = f1_aro_df
+    m2_mer_df = m2_aro_df
 
     # # Merge the two dataframes
     # jl_df = pd.concat([f1_mer_df, m2_mer_df], axis=0)
 
     # Store annotations only in a df
-    f1_annotations_df = f1_mer_df[['arousal', 'valence']]
-    m2_annotations_df = m2_mer_df[['arousal', 'valence']]
+    f1_annotations_df = f1_mer_df[[emotion]]
+    m2_annotations_df = m2_mer_df[[emotion]]
 
     # Retrieve bundle column as list from df
     # filenames = jl_df['bundle'].tolist()

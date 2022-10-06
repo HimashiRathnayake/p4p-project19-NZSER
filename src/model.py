@@ -21,8 +21,6 @@ import typing
 metrics = {
     'PCC': audmetric.pearson_cc,
     'CCC': audmetric.concordance_cc,
-    'MSE': audmetric.mean_squared_error,
-    'MAE': audmetric.mean_absolute_error,
 }
 
 # define constants and global variables
@@ -300,15 +298,18 @@ def compute_metrics(p: EvalPrediction):
 
     return scores
 
-def train_model(trainDataset: Dataset, testDataset: Dataset):
+def train_model(arousalTrainDataset: Dataset, arousalTestDataset: Dataset, valenceTrainDataset: Dataset, valenceTestDataset: Dataset):
     r"""Train model."""
     # load model from local repo
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = (os.path.dirname(os.path.dirname(file_path)))
     model_path = os.path.dirname(os.path.realpath(__file__))
+
+    all_labels = ['arousal', 'valence']
+    labels = all_labels[0] # Train on arousal first
     processor = Wav2Vec2Processor.from_pretrained(model_path)
-    print(model_path)
     # model = EmotionModel.from_pretrained(model_name)
-    # Generate labels array from 0 to 1 with 0.01 step
-    labels = ['arousal', 'valence']
+
     model = Wav2Vec2ForSpeechClassification.from_pretrained(
         model_path,
         config=transformers.AutoConfig.from_pretrained(
@@ -319,10 +320,6 @@ def train_model(trainDataset: Dataset, testDataset: Dataset):
                 finetuning_task='emotion',
                 )    
     )
-
-    file_path = os.path.realpath(os.path.join(
-    os.getcwd(), os.path.dirname(__file__)))
-    root = (os.path.dirname(os.path.dirname(file_path)))
 
     training_args = TrainingArguments(
         output_dir=root + "/data/jl/training/",
@@ -346,11 +343,19 @@ def train_model(trainDataset: Dataset, testDataset: Dataset):
         ignore_data_skip=True,
         )
 
-    model_name = os.path.dirname(os.path.realpath(__file__))
-    processor = Wav2Vec2Processor.from_pretrained(model_name)
+    # Train model on arousal first then valence
+    emotion = labels
+    print(f"Training model for {emotion}...")
+    # Load model
+    model.freeze_feature_extractor()
+    # model.to(device)
 
+    
+
+    # Create data collator
     data_collator = DataCollatorCTCWithPadding(processor=processor)
 
+    # Create trainer
     trainer = CTCTrainer(
 
         ConcordanceCorCoeff(),
@@ -363,17 +368,81 @@ def train_model(trainDataset: Dataset, testDataset: Dataset):
 
         compute_metrics=compute_metrics,
 
-        train_dataset=trainDataset,
+        train_dataset=arousalTrainDataset,
 
-        eval_dataset=testDataset,
+        eval_dataset=arousalTestDataset,
 
         tokenizer=processor.feature_extractor,
 
         callbacks=[TensorBoardCallback()],
     )
 
+    # Train model
     trainer.train()
-    trainer.save_model(f'modelSave-{datetime.now().strftime("%H-%M_%d-%m-%Y")}' )
+
+    # Save model
+    model.save_pretrained(f"{model_path}/{emotion}")
+    trainer.save_model(f"{model_path}/{emotion}-trainer")
+
+    # Evaluate model
+    trainer.evaluate()
+
+    
+    labels = all_labels[1] # Train on valence
+
+    model = Wav2Vec2ForSpeechClassification.from_pretrained(
+        model_path,
+        config=transformers.AutoConfig.from_pretrained(
+                model_path,
+                num_labels=len(labels),
+                label2id={label: i for i, label in enumerate(labels)},
+                id2label={i: label for i, label in enumerate(labels)},
+                finetuning_task='emotion',
+                )    
+    )
+
+    emotion = labels # Train on valence
+
+    print(f"Training model for {emotion}...")
+    # Load model
+    model.freeze_feature_extractor()
+    # model.to(device)
+
+    model_name = os.path.dirname(os.path.realpath(__file__))
+    processor = Wav2Vec2Processor.from_pretrained(model_name) # TODO: replace with checkpoint model
+
+    # Create trainer
+    trainer = CTCTrainer(
+
+        ConcordanceCorCoeff(),
+
+        model=model,
+
+        data_collator=data_collator,
+
+        args=training_args,
+
+        compute_metrics=compute_metrics,
+
+        train_dataset=valenceTrainDataset,
+
+        eval_dataset=valenceTestDataset,
+
+        tokenizer=processor.feature_extractor,
+
+        callbacks=[TensorBoardCallback()],
+    )
+
+    # Train model
+    trainer.train()
+
+    # Save model
+    model.save_pretrained(f"{model_path}/{emotion}")
+    trainer.save_model(f'{model_path}/trainerSave-{datetime.now().strftime("%H-%M_%d-%m-%Y")}')
+
+    # Evaluate model
+    trainer.evaluate()
+
     pass
     # x = model.train(True)
 
