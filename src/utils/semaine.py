@@ -297,3 +297,25 @@ def move_semaine_annotation_files():
         # Rename file to the new file name
         os.rename(destination_path + os.path.basename(file_name),
                   destination_path + new_file_name)
+
+# Iterates through semaine annotations and creates new mapped columns for arousal and valence, and adds start end times
+def map_semaine_annotations():
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    annotations_path = root + "/data/semaine/semaine_all_files/"
+    # Create a folder to store all the annotation files
+    if not os.path.exists(annotations_path):
+        os.makedirs(annotations_path)
+
+    # Iterate through TrainingInput folder for CSV annotations
+    for folder in os.listdir(annotations_path):
+        if folder.endswith(".csv"):
+            df = pd.read_csv(annotations_path + folder)
+            df['arousal_mapped'] = df['Arousal'].apply(
+                lambda x: map_annotation(x))
+            df['valence_mapped'] = df['Valence'].apply(
+                lambda x: map_annotation(x))
+            df['start'] = df['Time']
+            df['end'] = df['Time'] + 0.02
+            df.to_csv(annotations_path + folder, index=False)
