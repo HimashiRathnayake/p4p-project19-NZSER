@@ -3,18 +3,18 @@ import numpy as np
 from model import train_model
 from utils.jl import display_jl_quadrant_chart, display_jl_quadrant_chart_sentence, load_jl_sentence, load_jl_wav_files, move_jl_wav_files, test_jl, load_jl_results, test_jl_sentence, transform_jl_dataset
 from utils.recola import recola_dataset, test_recola
-from utils.semaine import move_semaine_annotation_files, move_semaine_wav_files, test_semaine
 
-# Load data
-arousalTrainDataset, arousalTestDataset = transform_jl_dataset('arousal')
-valenceTrainDataset, valenceTestDataset = transform_jl_dataset('valence')
+from utils.semaine import test_semaine, transform_semaine_dataset
+
+# train_dataset, test_dataset = transform_jl_dataset()
+
 # train_dataset, train_dataloader, test_dataset, test_dataloader = recola_dataset()
+trainDataset, testDataset = transform_semaine_dataset()
+# Finetune semaine
+train_model(trainDataset, testDataset)
 # processor, model = load_model()
-train_model(arousalTrainDataset=arousalTrainDataset, 
-            arousalTestDataset=arousalTestDataset, 
-            valenceTrainDataset=valenceTrainDataset, 
-            valenceTestDataset=valenceTestDataset
-            )
+# train_model(train_dataset, test_dataset)
+
 # test_msp(processor, model)
 # test_recola(processor, model)
 # test_semaine(processor, model)

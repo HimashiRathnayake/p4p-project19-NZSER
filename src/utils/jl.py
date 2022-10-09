@@ -437,26 +437,31 @@ def transform_jl_dataset(emotion: str):
     m2_val_df = pd.read_csv(csv_files[7])
     
     f1_aro_df = f1_aro_df[['bundle', 'start', 'end', 'labels' ]]
-    f1_aro_df = f1_aro_df.rename(columns = {'labels': emotion})
-    # f1_val_df = f1_val_df['labels']
-    # f1_val_df = f1_val_df.rename('valence')
+
+    f1_aro_df = f1_aro_df.rename(columns = {'labels': 'arousal'})
+    f1_dom_df = f1_val_df['labels']
+    f1_dom_df = f1_dom_df.rename('dominance')
+    f1_val_df = f1_val_df['labels']
+    f1_val_df = f1_val_df.rename('valence')
 
     m2_aro_df = m2_aro_df[['bundle', 'start', 'end', 'labels']]
-    m2_aro_df = m2_aro_df.rename(columns = {'labels': emotion})
-    # m2_val_df = m2_val_df['labels']
-    # m2_val_df = m2_val_df.rename('valence')
+    m2_aro_df = m2_aro_df.rename(columns = {'labels': 'arousal'})
+    m2_dom_df = m2_val_df['labels']
+    m2_dom_df = m2_dom_df.rename('dominance')
+    m2_val_df = m2_val_df['labels']
+    m2_val_df = m2_val_df.rename('valence')
 
-    # f1_mer_df = pd.concat([f1_aro_df, f1_val_df], axis=1)
-    # m2_mer_df = pd.concat([m2_aro_df, m2_val_df], axis=1)
-    f1_mer_df = f1_aro_df
-    m2_mer_df = m2_aro_df
+    f1_mer_df = pd.concat([f1_aro_df, f1_dom_df, f1_val_df], axis=1)
+    m2_mer_df = pd.concat([m2_aro_df, m2_dom_df, m2_val_df], axis=1)
+
 
     # # Merge the two dataframes
     # jl_df = pd.concat([f1_mer_df, m2_mer_df], axis=0)
 
     # Store annotations only in a df
-    f1_annotations_df = f1_mer_df[[emotion]]
-    m2_annotations_df = m2_mer_df[[emotion]]
+    f1_annotations_df = f1_mer_df[['arousal', 'dominance', 'valence']]
+    m2_annotations_df = m2_mer_df[['arousal', 'dominance', 'valence']]
+
 
     # Retrieve bundle column as list from df
     # filenames = jl_df['bundle'].tolist()
@@ -464,7 +469,7 @@ def transform_jl_dataset(emotion: str):
     m2_filenames = m2_mer_df['bundle'].tolist()
 
     # Append jl_wav_files dir name to each filename along with the .wav file extension
-    jl_wav_files_dir = root + '\\data\\jl\\jl_wav_files\\'
+    jl_wav_files_dir = root + '/data/jl/jl_wav_files/'
     f1_file = [jl_wav_files_dir + filename + '.wav' for filename in f1_filenames]
     m2_file = [jl_wav_files_dir + filename + '.wav' for filename in m2_filenames]
 
@@ -564,3 +569,82 @@ def transform_jl_dataset(emotion: str):
     test_dataset = datasets.Dataset.from_pandas(test_dataset_df)
     
     return train_dataset, test_dataset
+    
+
+def evaluate_single_file_(filename: str, processor, model):
+
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+
+    # Load in the one wav file that matches the filename
+    signal = load(root + "/data/jl/female1_all_a_1/" + filename +
+                  '_bndl/' + filename + ".wav", sr=SAMPLING_RATE)
+
+    # If bundle contains "male" load in male csv else load female csv
+    # Load csv files with annotations
+    csv_files = glob.glob(root + "/data/jl/*.csv")
+
+    # f1 = female1, m2 = male2, df = dataframe
+    if filename.__contains__("female"):
+        aro_df = pd.read_csv(csv_files[0])
+        val_df = pd.read_csv(csv_files[1])
+    else:
+        aro_df = pd.read_csv(csv_files[2])
+        val_df = pd.read_csv(csv_files[3])
+
+    aro_df = aro_df[['bundle', 'labels']]
+    aro_df = aro_df.rename(columns={'labels': 'arousal'})
+    val_df = val_df['labels']
+    val_df = val_df.rename('valence')
+
+    mer_df = pd.concat([aro_df, val_df], axis=1)
+
+    # Extract the df with the bundle name that matches the filename
+    mer_df = mer_df[mer_df['bundle'] == filename]
+
+    print('Finished loading JL-corpus WAV file.')
+
+    # Test the signal
+    df = pd.DataFrame(columns=['true_aro', 'pred_aro', 'true_val', 'pred_val'])
+
+    # Get the arousal and valence labels
+    true_aro = mer_df['arousal'].values
+    true_val = mer_df['valence'].values
+
+    # Map true arousal and valence values from [-1, 1] -> [0, 1]
+    true_aro = (true_aro + 1) / 2
+    true_val = (true_val + 1) / 2
+
+    # Load audio signal and split into segments of 0.2 seconds
+    signal = [signal]
+    chunks = get_audio_chunks_jl(
+        signal, frame_size=JL_FRAME_SIZE, sampling_rate=SAMPLING_RATE)
+
+    if (len(chunks) != len(true_aro)):
+        chunks = chunks[:len(true_aro)]
+
+    pred_aro = []
+    pred_val = []
+
+    for j, chunk in enumerate(chunks):
+        # Process each chunk and retrieve arousal and valence values
+        chunk = np.array(chunk, dtype=np.float32)
+        results = process_func(
+            [[chunk]], SAMPLING_RATE, model=model, processor=processor)
+        pred_aro.append(results[0][0])
+        pred_val.append(results[0][2])
+
+    # Map true arousal and valence values from [0, 1] -> [-1, 1]
+    pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
+    true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
+
+    # Plot the results using the quadrant chart function
+    quadrant_chart(pred_val, pred_aro, true_val, true_aro)
+    plt.title('Arousal vs Valence', fontsize=16)
+    plt.ylabel('Arousal', fontsize=14)
+    plt.xlabel('Valence', fontsize=14)
+    plt.grid(True, animated=True, linestyle='--', alpha=0.5)
+    # Save the plot as a png file with the index of the file as the filename
+    plt.savefig(f'{file_path}/jl_plts_ft/jl_results_f1_{filename}.png')
+    plt.close()

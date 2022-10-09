@@ -1,9 +1,11 @@
 import os
 import glob
 import shutil
+import datasets
 import pandas as pd
 import numpy as np
 from librosa import load
+import audformat
 from model import process_func
 from utils.audio import get_audio_chunks_semaine
 from utils.calc import ccc, map_arrays_to_w2v, pearson, map_arrays_to_quadrant
@@ -176,7 +178,6 @@ def test_semaine(processor, model):
 
     return ccc_aro, ccc_val
 
-
 def load_semaine_results():
     # Load in the results of the semaine corpus txt file
     semaine_results = []
@@ -298,6 +299,9 @@ def move_semaine_annotation_files():
         os.rename(destination_path + os.path.basename(file_name),
                   destination_path + new_file_name)
 
+def map_annotation(x):
+    return (x+1)/2
+
 # Iterates through semaine annotations and creates new mapped columns for arousal and valence, and adds start end times
 def map_semaine_annotations():
     file_path = os.path.realpath(os.path.join(
@@ -309,13 +313,115 @@ def map_semaine_annotations():
         os.makedirs(annotations_path)
 
     # Iterate through TrainingInput folder for CSV annotations
-    for folder in os.listdir(annotations_path):
-        if folder.endswith(".csv"):
-            df = pd.read_csv(annotations_path + folder)
+    for file in os.listdir(annotations_path):
+        if file.endswith(".csv"):
+            df = pd.read_csv(annotations_path + file)
+            df['filename'] = file[:-4]
             df['arousal_mapped'] = df['Arousal'].apply(
                 lambda x: map_annotation(x))
             df['valence_mapped'] = df['Valence'].apply(
                 lambda x: map_annotation(x))
             df['start'] = df['Time']
             df['end'] = df['Time'] + 0.02
-            df.to_csv(annotations_path + folder, index=False)
+            df.to_csv(annotations_path + file, index=False)
+
+# Merge Semaine CSVs into one df
+def merge_semaine_csvs():
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    annotations_path = root + "/data/semaine/semaine_all_files/"
+    df = pd.DataFrame()
+    for file in os.listdir(annotations_path):
+        if file.endswith(".csv"):
+            df = pd.concat([df, pd.read_csv(annotations_path + file)])
+    df.to_csv(annotations_path + "semaine_all.csv", index=False)
+
+    return df
+
+
+# Transform semaine dataset into datset format used by audeering model
+def transform_semaine_dataset():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+
+    # load semaine annotation df
+    semaine_df = merge_semaine_csvs()
+    # Filter df to include filename, start, end, arousal, valence columns
+    semaine_df = semaine_df[['filename', 'start', 'end', 'arousal_mapped', 'valence_mapped']]
+    # Rename columns to match audeering format
+    semaine_df.rename(columns={
+        'filename': 'file',
+           'arousal_mapped': 'arousal',
+            'valence_mapped': 'valence'
+        }, inplace=True)
+
+    # Store annotations in a separate df
+    annotations_df = semaine_df[[ 'arousal', 'valence']]
+    # Insert new column 'dominance' in between arousal and valence columns and store valence values inside it
+    # This is done because audeering model expects 3 columns for annotations
+    annotations_df.insert(1, 'dominance', semaine_df['valence'])
+
+    # Store filenames, start and end times in lists
+    # These lists will be used to create a dataframe with the same format as the audeering dataset
+    file = semaine_df['file'].tolist()
+    start = semaine_df['start'].tolist()
+    end = semaine_df['end'].tolist()
+
+    # append dir name for each file along with the '.wav' extension
+    semaine_wav_files_dir = root + "/data/semaine/semaine_all_files/" 
+    file = [f'{semaine_wav_files_dir}{fi}.wav' for fi in file]
+
+    # Split annotations_df and file, start, end 70/30 into train and test sets
+    train_split = int(0.7 * len(annotations_df))
+    train_annotations_df = annotations_df[:train_split]
+    test_annotations_df = annotations_df[train_split:]
+    train_file = file[:train_split]
+    test_file = file[train_split:]
+    train_start = start[:train_split]
+    test_start = start[train_split:]
+    train_end = end[:train_split]
+    test_end = end[train_split:]
+
+
+    # Create segmented index (MultiIndex) for the datasets
+    segmented_index_train = audformat.segmented_index(train_file, train_start, train_end)
+    segmented_index_test = audformat.segmented_index(test_file, test_start, test_end)
+
+    # Create series for datasets
+    train_series = pd.Series(
+        data=train_annotations_df.values.tolist(),
+        index=segmented_index_train,
+        dtype=object,
+        name='labels',
+    )
+
+    test_series = pd.Series(
+        data=test_annotations_df.values.tolist(),
+        index=segmented_index_test,
+        dtype=object,
+        name='labels',
+    )
+
+
+    semaine_train_dataset_df = train_series.reset_index()
+    semaine_test_dataset_df = test_series.reset_index()
+    semaine_train_dataset_df.start = semaine_train_dataset_df.start.dt.total_seconds().astype('str')
+    semaine_test_dataset_df.start = semaine_test_dataset_df.start.dt.total_seconds().astype('str')
+    semaine_train_dataset_df.end = semaine_train_dataset_df.end.dt.total_seconds().astype('str')
+    semaine_test_dataset_df.end = semaine_test_dataset_df.end.dt.total_seconds().astype('str')
+
+    semaine_train_dataset_df['input_values'] = semaine_train_dataset_df[['file', 'start', 'end']].values.tolist()
+    semaine_test_dataset_df['input_values'] = semaine_test_dataset_df[['file', 'start', 'end']].values.tolist()
+
+    semaine_train_dataset_df = semaine_train_dataset_df[['labels', 'input_values']]
+    semaine_test_dataset_df = semaine_test_dataset_df[['labels', 'input_values']]
+
+    train_dataset = datasets.Dataset.from_pandas(semaine_train_dataset_df)
+    test_dataset = datasets.Dataset.from_pandas(semaine_test_dataset_df)
+
+    return train_dataset, test_dataset
+
+if __name__ == "__main__":
+    merge_semaine_csvs()
+    # semaine_results()
