@@ -12,7 +12,6 @@ from utils.semaine import interpolate_semaine_annotations, load_semaine_datasets
 trainDataset, testDataset = load_jl_datasets_disk()
 # trainDataset, testDataset = load_semaine_datasets()
 train_model(trainDataset=trainDataset, testDataset=testDataset, datasetName="jl")
->>>>>>> Stashed changes
 
 # interpolate_semaine_annotations()
 # display_recola_quadrant_chart(0, 21)
