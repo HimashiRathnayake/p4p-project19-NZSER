@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 import glob
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 from librosa import load
@@ -9,7 +10,8 @@ from torch.utils.data import DataLoader
 
 from model import process_func
 from utils.audio import get_audio_chunks_recola
-from utils.calc import ccc, map_arrays_to_w2v, pearson
+from utils.calc import ccc, map_arrays_to_quadrant, map_arrays_to_w2v, pearson
+from utils.display import quadrant_chart
 
 # Constants
 SAMPLING_RATE = 16000
@@ -152,20 +154,21 @@ def test_recola(processor, model):
     print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val
 
+
 def load_recola_results():
     # Load in the results of the recola corpus txt file
     recola_results = []
     file_results = []
-
-    with open('recola_results.txt', 'r', encoding='utf-8') as f:
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    recola_results_path = root + '/recola_results/recola_results.txt'
+    with open(recola_results_path, 'r', encoding='utf-8') as f:
         for line in f:
             # Skip the first line
-
             if line == 'True arousal,Predicted arousal,True valence,Predicted valence\n':
                 continue
-
             # Store the results of each prev file into a pandas dataframe
-            if line.startswith('Session'):
+            if line.startswith('P'):
                 # if this is the first file then skip
                 if len(file_results) != 0:
                     df = pd.DataFrame(file_results, columns=[
@@ -181,6 +184,55 @@ def load_recola_results():
     return recola_results
 
 
+
+def display_recola_quadrant_chart(start_index: int, end_index: int):
+    # Load in the results of the JL-corpus test text file
+    recola_results = load_recola_results()
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    recola_plots = root + '/recola_results/recola_plts'
+    
+    if(start_index < 0 or start_index >= len(recola_results)):
+        print('Invalid start index')
+        return
+    
+    if(end_index < start_index or end_index >= len(recola_results)):
+        print('Invalid end index')
+        return
+
+    # Iterate through each file and calculate the arousal and valence values
+    for i in range(start_index , end_index + 1): # Python exclusive of end index
+
+        results = recola_results[i]
+        # Retrieve true arousal and valence values from dataframe
+        true_aro = results['true_aro'].values.tolist()
+        true_val = results['true_val'].values.tolist()
+
+        # Retrieve predicted arousal and valence values from dataframe
+        pred_aro = results['pred_aro'].values.tolist()
+        pred_val = results['pred_val'].values.tolist()
+
+        # Map true arousal and valence values from [0, 1] -> [-1, 1]
+        pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
+        true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
+        
+
+        # Take values from position 90 to 110
+        true_aro = true_aro[90:110]
+        true_val = true_val[90:110]
+        pred_aro = pred_aro[90:110]
+        pred_val = pred_val[90:110]
+
+        # Plot the results using the quadrant chart function
+        quadrant_chart(pred_val, pred_aro, true_val, true_aro,)
+        # plt.figure(i)
+        plt.title('Arousal vs Valence', fontsize=16)
+        plt.ylabel('Arousal', fontsize=14)
+        plt.xlabel('Valence', fontsize=14)
+        plt.grid(True, animated=True, linestyle='--', alpha=0.5)
+        # Save the plot as a png file with the index of the file as the filename
+        plt.savefig(f'{recola_plots}/recola_results_{i}.png')
+        plt.close()
 
 
 

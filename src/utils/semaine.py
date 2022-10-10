@@ -182,8 +182,11 @@ def load_semaine_results():
     # Load in the results of the semaine corpus txt file
     semaine_results = []
     file_results = []
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    semaine_results_path = root + '/semaine_results/semaine_results.txt'
 
-    with open('semaine_results.txt', 'r', encoding='utf-8') as f:
+    with open(semaine_results_path, 'r', encoding='utf-8') as f:
         for line in f:
             # Skip the first line
 
@@ -210,8 +213,9 @@ def load_semaine_results():
 def plot_semaine_results(start_index: int, end_index: int):
     # Load in the results of the semaine corpus txt file
     semaine_results = load_semaine_results()
-    file_path = os.path.realpath(os.path.join(
-        os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    semaine_plots = root + '/semaine_results/semaine_plts'
 
     if(start_index < 0 or start_index >= len(semaine_results)):
         print('Invalid start index')
@@ -237,21 +241,21 @@ def plot_semaine_results(start_index: int, end_index: int):
         pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
         true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
 
-        # Take every 500th value of the true and predicted arousal and valence values
-        true_aro = true_aro[::500]
-        true_val = true_val[::500]
-        pred_aro = pred_aro[::500]
-        pred_val = pred_val[::500]
+        # Take values form position 60 to 80
+        true_aro = true_aro[60:80]
+        true_val = true_val[60:80]
+        pred_aro = pred_aro[60:80]
+        pred_val = pred_val[60:80]
 
         # Plot the results using the quadrant chart function
         quadrant_chart(pred_val, pred_aro, true_val, true_aro)
-        plt.figure(i)
         plt.title('Arousal vs Valence', fontsize=16)
         plt.ylabel('Arousal', fontsize=14)
         plt.xlabel('Valence', fontsize=14)
         plt.grid(True, animated=True, linestyle='--', alpha=0.5)
         # Save the plot as a png file with the index of the file as the filename
-        plt.savefig(f'{file_path}/semaine_plts/semaine_results_{i}.png')
+        plt.savefig(f'{semaine_plots}/semaine_results_{i}.png')
+        plt.close()
 
 
 # Move all semaine wav files into a single folder and name them to the session number
@@ -332,6 +336,7 @@ def interpolate_semaine_annotations():
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     annotations_path = root + "/data/semaine/semaine_all_files/"
+
     # Create a folder to store all the annotation files
     if not os.path.exists(annotations_path):
         os.makedirs(annotations_path)
@@ -340,9 +345,10 @@ def interpolate_semaine_annotations():
     for file in os.listdir(annotations_path):
         if file.endswith(".csv"):
             df = pd.read_csv(annotations_path + file)
-            # merge 2 rows into 1, average the values
-            df = df.groupby(df.index // 2).mean()
-            df.to_csv(annotations_path + '/new/' + file, index=False)
+            # Delete the first row as it is not needed
+            df = df.groupby(
+                np.arange(len(df))//2).mean()
+            df.to_csv(annotations_path + file, index=False)
 
 # Merge Semaine CSVs into one df
 def merge_semaine_csvs():

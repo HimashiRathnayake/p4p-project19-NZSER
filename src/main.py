@@ -2,18 +2,20 @@ import dis
 import numpy as np
 from model import train_model
 from utils.jl import display_jl_quadrant_chart, display_jl_quadrant_chart_sentence, load_jl_sentence, load_jl_wav_files, move_jl_wav_files, test_jl, load_jl_results, test_jl_sentence, transform_jl_dataset
-from utils.recola import recola_dataset, test_recola
+from utils.recola import display_recola_quadrant_chart, recola_dataset, test_recola
 
-from utils.semaine import interpolate_semaine_annotations, load_semaine_datasets, map_semaine_annotations, test_semaine, transform_semaine_dataset, move_semaine_annotation_files, move_semaine_wav_files
+from utils.semaine import interpolate_semaine_annotations, load_semaine_datasets, map_semaine_annotations, plot_semaine_results, test_semaine, transform_semaine_dataset, move_semaine_annotation_files, move_semaine_wav_files
 
 # train_dataset, test_dataset = transform_jl_dataset()
 
 # Finetune semaine
-trainDataset, testDataset = load_semaine_datasets()
-train_model(trainDataset, testDataset)
+# trainDataset, testDataset = load_semaine_datasets()
+# train_model(trainDataset, testDataset)
 
 # interpolate_semaine_annotations()
+# display_recola_quadrant_chart(0, 21)
 
+plot_semaine_results(0, 2)
 # processor, model = load_model()
 # train_model(train_dataset, test_dataset)
 
