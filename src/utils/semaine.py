@@ -325,6 +325,25 @@ def map_semaine_annotations():
             df['end'] = df['Time'] + 0.02
             df.to_csv(annotations_path + file, index=False)
 
+# Wav2Vec2 model has a minimum input size of 25ms
+# Semaine annotations are 20ms long, this function merges 2 20ms annotations into 1 40ms annotation
+def interpolate_semaine_annotations():
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    annotations_path = root + "/data/semaine/semaine_all_files/"
+    # Create a folder to store all the annotation files
+    if not os.path.exists(annotations_path):
+        os.makedirs(annotations_path)
+
+    # Iterate through TrainingInput folder for CSV annotations
+    for file in os.listdir(annotations_path):
+        if file.endswith(".csv"):
+            df = pd.read_csv(annotations_path + file)
+            # merge 2 rows into 1, average the values
+            df = df.groupby(df.index // 2).mean()
+            df.to_csv(annotations_path + '/new/' + file, index=False)
+
 # Merge Semaine CSVs into one df
 def merge_semaine_csvs():
     file_path = os.path.realpath(os.path.join(
@@ -419,6 +438,19 @@ def transform_semaine_dataset():
 
     train_dataset = datasets.Dataset.from_pandas(semaine_train_dataset_df)
     test_dataset = datasets.Dataset.from_pandas(semaine_test_dataset_df)
+
+    # Save train and test datasets
+    train_dataset.save_to_disk(root + "/data/semaine/train_dataset")
+    test_dataset.save_to_disk(root + "/data/semaine/test_dataset")
+
+    return train_dataset, test_dataset
+
+# Load semaine datasets from disk
+def load_semaine_datasets():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    train_dataset = datasets.Dataset.load_from_disk(root + "/data/semaine/train_dataset")
+    test_dataset = datasets.Dataset.load_from_disk(root + "/data/semaine/test_dataset")
 
     return train_dataset, test_dataset
 

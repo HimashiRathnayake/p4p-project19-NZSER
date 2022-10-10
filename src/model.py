@@ -305,19 +305,19 @@ def compute_metrics(p: EvalPrediction):
     return scores
 
 def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: str = 'jl'):
-
     r"""Train model."""
     # load model from local repo
     file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
     root = (os.path.dirname(os.path.dirname(file_path)))
     model_path = os.path.dirname(os.path.realpath(__file__))
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     all_labels = ['arousal', 'valence']
     labels = all_labels[0] # Train on arousal first
     processor = Wav2Vec2Processor.from_pretrained(model_path)
     # model = EmotionModel.from_pretrained(model_name)
 
-    # Generate labels array from 0 to 1 with 0.01 step
     labels = ['LABEL_0', 'LABEL_1', 'LABEL_2']
 
     model = Wav2Vec2ForSpeechClassification.from_pretrained(
@@ -328,8 +328,8 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
                 label2id={label: i for i, label in enumerate(labels)},
                 id2label={i: label for i, label in enumerate(labels)},
                 finetuning_task='emotion',
-                )    
-    )
+                )
+    ).to(device)
 
     training_args = TrainingArguments(
         output_dir=root + f"/data/{datasetName}/training/",
