@@ -263,7 +263,7 @@ def move_semaine_wav_files():
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    sessions_path = root + "/data/semaine/sessions"
+    sessions_path = root + "/data/semaine/Sessions"
     destination_path = root + "/data/semaine/semaine_all_files/"
 
     # Create a folder to store all the wav files
@@ -461,5 +461,7 @@ def load_semaine_datasets():
     return train_dataset, test_dataset
 
 if __name__ == "__main__":
+    move_semaine_wav_files()
+    move_semaine_annotation_files()
     merge_semaine_csvs()
     # semaine_results()
