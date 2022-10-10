@@ -1,4 +1,6 @@
 import dataclasses
+import collections
+import collections.abc
 import datetime
 import os
 import torch
@@ -18,6 +20,8 @@ import audeer, audmetric
 import audiofile
 import typing
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,2,3'
+
 metrics = {
     'PCC': audmetric.pearson_cc,
     'CCC': audmetric.concordance_cc,
@@ -26,7 +30,7 @@ metrics = {
 # define constants and global variables
 SAMPLING_RATE = 16000
 IS_JL = True
-device = 'cpu'
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 log_root = audeer.mkdir('log')
 model_root = audeer.mkdir('model')
@@ -304,7 +308,7 @@ def compute_metrics(p: EvalPrediction):
 
     return scores
 
-def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: str = 'jl'):
+def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: str = 'jl', jlTrainDataset: Dataset=None, jlTestDataset: Dataset=None ):
     r"""Train model."""
     # load model from local repo
     file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -319,7 +323,7 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
     # model = EmotionModel.from_pretrained(model_name)
 
     labels = ['LABEL_0', 'LABEL_1', 'LABEL_2']
-
+    model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
     model = Wav2Vec2ForSpeechClassification.from_pretrained(
         model_path,
         config=transformers.AutoConfig.from_pretrained(
@@ -334,7 +338,7 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
     training_args = TrainingArguments(
         output_dir=root + f"/data/{datasetName}/training/",
         logging_dir=log_root,
-        per_device_train_batch_size=8,
+        per_device_train_batch_size=16,
         per_device_eval_batch_size=8,
         gradient_accumulation_steps=2,
         evaluation_strategy='epoch',
@@ -381,6 +385,28 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
     # Train model
     trainer.train()
     trainer.save_model(f'modelSave-{datetime.datetime.now().strftime("%H-%M_%d-%m-%Y")}' )
+
+    # Train model now on JL dataset
+    if jlTrainDataset is not None and jlTestDataset is not None:
+        print("Training model on JL dataset...")
+        
+        training_args.per_device_train_batch_size = 8
+
+        trainer = CTCTrainer(
+        ConcordanceCorCoeff(),
+        model=model, # Wav2Vec2ForSpeechClassification.from_pretrained(model_name),
+        data_collator=data_collator,
+        args=training_args,
+        compute_metrics=compute_metrics,
+        train_dataset=trainDataset,
+        eval_dataset=testDataset,
+        tokenizer=processor.feature_extractor,
+        callbacks=[TensorBoardCallback()],
+    )
+
+        trainer.train()
+
+        trainer.save_model(f'jlFinetunedOn_{datasetName}_modelSave-{datetime.datetime.now().strftime("%H-%M_%d-%m-%Y")}' )
 
 def load_model(model_path: str=None):
     # load model from local repo
