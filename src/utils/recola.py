@@ -152,6 +152,38 @@ def test_recola(processor, model):
     print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val
 
+def load_recola_results():
+    # Load in the results of the recola corpus txt file
+    recola_results = []
+    file_results = []
+
+    with open('recola_results.txt', 'r', encoding='utf-8') as f:
+        for line in f:
+            # Skip the first line
+
+            if line == 'True arousal,Predicted arousal,True valence,Predicted valence\n':
+                continue
+
+            # Store the results of each prev file into a pandas dataframe
+            if line.startswith('Session'):
+                # if this is the first file then skip
+                if len(file_results) != 0:
+                    df = pd.DataFrame(file_results, columns=[
+                                      'true_aro', 'pred_aro', 'true_val', 'pred_val'])
+                    recola_results.append(df)
+                    file_results = []
+                continue
+            else:
+                # Remove the newline character from the end of the line and append to file_results
+                list_results = list(map(float, line.strip().split(',')))
+                file_results.append(list_results)
+
+    return recola_results
+
+
+
+
+
 def recola_dataset():
     # Create dictionary for loading in Recola datasets for load_dataset
 
