@@ -419,11 +419,79 @@ def load_jl_wav_files():
 
     return f1_bdls, m2_bdls
 
-def transform_jl_dataset(emotion: str):
-    # Check input is either arousal or valence
-    if emotion != 'arousal' and emotion != 'valence':
-        raise ValueError('Please enter either arousal or valence')
+def df_train_test_split(df, train_size=0.7):
+    # Split the dataframe into train and test sets
+    train_df = df.sample(frac=train_size, random_state=0)
+    test_df = df.drop(train_df.index)
 
+    return train_df, test_df
+
+def split_dfs_by_emotion(f1_df, m2_df, train_split, emotions_filter: List = None):
+    ''' Split the dataframe into separate dataframes for each emotion by checking 
+        if bundle name contains the emotion name.
+        
+        f1 = female1, m2 = male2, df = dataframe
+    '''
+    f1_ang_df = f1_df[f1_df['bundle'].str.contains('angry')]  
+    f1_anx_df = f1_df[f1_df['bundle'].str.contains('anxious')]
+    f1_apo_df = f1_df[f1_df['bundle'].str.contains('apologetic')]
+    f1_ent_df = f1_df[f1_df['bundle'].str.contains('enthusiastic')]
+    f1_exc_df = f1_df[f1_df['bundle'].str.contains('excited')]
+    f1_hap_df = f1_df[f1_df['bundle'].str.contains('happy')]
+    f1_neu_df = f1_df[f1_df['bundle'].str.contains('neutral')]
+    f1_sad_df = f1_df[f1_df['bundle'].str.contains('sad')]
+
+    m2_ang_df = m2_df[m2_df['bundle'].str.contains('angry')]
+    m2_anx_df = m2_df[m2_df['bundle'].str.contains('anxious')]
+    m2_apo_df = m2_df[m2_df['bundle'].str.contains('apologetic')]
+    m2_ent_df = m2_df[m2_df['bundle'].str.contains('enthusiastic')]
+    m2_exc_df = m2_df[m2_df['bundle'].str.contains('excited')]
+    m2_hap_df = m2_df[m2_df['bundle'].str.contains('happy')]
+    m2_neu_df = m2_df[m2_df['bundle'].str.contains('neutral')]
+    m2_sad_df = m2_df[m2_df['bundle'].str.contains('sad')]
+    m2_con_df = m2_df[m2_df['bundle'].str.contains('confident')]
+    m2_wor_df = m2_df[m2_df['bundle'].str.contains('worried')]
+
+    # Split dfs into train and test sets with a defined split ratio from input param
+    f1_ang_train, f1_ang_test = df_train_test_split(f1_ang_df, train_size=train_split)
+    f1_anx_train, f1_anx_test = df_train_test_split(f1_anx_df, train_size=train_split)
+    f1_apo_train, f1_apo_test = df_train_test_split(f1_apo_df, train_size=train_split)
+    f1_ent_train, f1_ent_test = df_train_test_split(f1_ent_df, train_size=train_split)
+    f1_exc_train, f1_exc_test = df_train_test_split(f1_exc_df, train_size=train_split)
+    f1_hap_train, f1_hap_test = df_train_test_split(f1_hap_df, train_size=train_split)
+    f1_neu_train, f1_neu_test = df_train_test_split(f1_neu_df, train_size=train_split)
+    f1_sad_train, f1_sad_test = df_train_test_split(f1_sad_df, train_size=train_split)
+
+    m2_ang_train, m2_ang_test = df_train_test_split(m2_ang_df, train_size=train_split)
+    m2_anx_train, m2_anx_test = df_train_test_split(m2_anx_df, train_size=train_split)
+    m2_apo_train, m2_apo_test = df_train_test_split(m2_apo_df, train_size=train_split)
+    m2_ent_train, m2_ent_test = df_train_test_split(m2_ent_df, train_size=train_split)
+    m2_exc_train, m2_exc_test = df_train_test_split(m2_exc_df, train_size=train_split)
+    m2_hap_train, m2_hap_test = df_train_test_split(m2_hap_df, train_size=train_split)
+    m2_neu_train, m2_neu_test = df_train_test_split(m2_neu_df, train_size=train_split)
+    m2_sad_train, m2_sad_test = df_train_test_split(m2_sad_df, train_size=train_split)
+    m2_con_train, m2_con_test = df_train_test_split(m2_con_df, train_size=train_split)
+    m2_wor_train, m2_wor_test = df_train_test_split(m2_wor_df, train_size=train_split)
+    
+    # Merge emotions into one dataframe for train and test
+    f1_train_df = pd.concat([f1_ang_train, f1_anx_train, f1_apo_train, f1_ent_train, f1_exc_train, f1_hap_train, f1_neu_train, f1_sad_train])
+    f1_test_df = pd.concat([f1_ang_test, f1_anx_test, f1_apo_test, f1_ent_test, f1_exc_test, f1_hap_test, f1_neu_test, f1_sad_test])
+    m2_train_df = pd.concat([m2_ang_train, m2_anx_train, m2_apo_train, m2_ent_train, m2_exc_train, m2_hap_train, m2_neu_train, m2_sad_train, m2_con_train, m2_wor_train])
+    m2_test_df = pd.concat([m2_ang_test, m2_anx_test, m2_apo_test, m2_ent_test, m2_exc_test, m2_hap_test, m2_neu_test, m2_sad_test, m2_con_test, m2_wor_test])
+
+    # Join train sets and test sets into one dataframe
+    train_df = pd.concat([f1_train_df, m2_train_df])
+    test_df = pd.concat([f1_test_df, m2_test_df])
+
+    # Shuffle train and test sets
+    train_df = train_df.sample(frac=1).reset_index(drop=True)
+    test_df = test_df.sample(frac=1).reset_index(drop=True)
+
+    return train_df, test_df
+
+
+
+def transform_jl_dataset():
     file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
 
@@ -454,82 +522,37 @@ def transform_jl_dataset(emotion: str):
     f1_mer_df = pd.concat([f1_aro_df, f1_dom_df, f1_val_df], axis=1)
     m2_mer_df = pd.concat([m2_aro_df, m2_dom_df, m2_val_df], axis=1)
 
+    # Split data into train and test sets by emotion and merge f1 and m2 dataframes
+    train_set,  test_set = split_dfs_by_emotion(f1_mer_df, m2_mer_df, train_split=0.7)
 
     # # Merge the two dataframes
     # jl_df = pd.concat([f1_mer_df, m2_mer_df], axis=0)
 
     # Store annotations only in a df
-    f1_annotations_df = f1_mer_df[['arousal', 'dominance', 'valence']]
-    m2_annotations_df = m2_mer_df[['arousal', 'dominance', 'valence']]
-
+    train_annotations_df = train_set[['arousal', 'dominance', 'valence']]
+    test_annotations_df = test_set[['arousal', 'dominance', 'valence']]
 
     # Retrieve bundle column as list from df
     # filenames = jl_df['bundle'].tolist()
-    f1_filenames = f1_mer_df['bundle'].tolist()
-    m2_filenames = m2_mer_df['bundle'].tolist()
+    train_filenames = train_set['bundle'].tolist()
+    test_filenames = test_set['bundle'].tolist()
 
     # Append jl_wav_files dir name to each filename along with the .wav file extension
     jl_wav_files_dir = root + '/data/jl/jl_wav_files/'
-    f1_file = [jl_wav_files_dir + filename + '.wav' for filename in f1_filenames]
-    m2_file = [jl_wav_files_dir + filename + '.wav' for filename in m2_filenames]
+    train_files = [jl_wav_files_dir + filename + '.wav' for filename in train_filenames]
+    test_files = [jl_wav_files_dir + filename + '.wav' for filename in test_filenames]
 
     # Store start and end times in lists
-    f1_start_times = f1_mer_df['start'].tolist()
-    f1_end_times = f1_mer_df['end'].tolist()
-    m2_start_times = m2_mer_df['start'].tolist()
-    m2_end_times = m2_mer_df['end'].tolist()
+    train_start_times = train_set['start'].tolist()
+    train_end_times = train_set['end'].tolist()
+    test_start_times = test_set['start'].tolist()
+    test_end_times = test_set['end'].tolist()
 
     # Convert start and end times to from milliseconds to seconds
-    f1_start_times = [f1_start_time / 1000 for f1_start_time in f1_start_times]
-    f1_end_times = [f1_end_time / 1000 for f1_end_time in f1_end_times]
-    m2_start_times = [m2_start_time / 1000 for m2_start_time in m2_start_times]
-    m2_end_times = [m2_end_time / 1000 for m2_end_time in m2_end_times]
-
-    # Form a 70/30 train/test split
-    train_split_point = int(len(f1_aro_df) * 0.7)
-    f1_train_files = f1_file[:train_split_point]
-    f1_test_files = f1_file[train_split_point:]
-    f1_train_annotations = f1_annotations_df[:train_split_point]
-    f1_test_annotations = f1_annotations_df[train_split_point:]
-    f1_train_start_times = f1_start_times[:train_split_point]
-    f1_train_end_times = f1_end_times[:train_split_point]
-    f1_test_start_times = f1_start_times[train_split_point:]
-    f1_test_end_times = f1_end_times[train_split_point:]
-
-    train_split_point = int(len(m2_aro_df) * 0.7)
-    m2_train_files = m2_file[:train_split_point]
-    m2_test_files = m2_file[train_split_point:]
-    m2_train_annotations = m2_annotations_df[:train_split_point]
-    m2_test_annotations = m2_annotations_df[train_split_point:]
-    m2_train_start_times = m2_start_times[:train_split_point]
-    m2_train_end_times = m2_end_times[:train_split_point]
-    m2_test_start_times = m2_start_times[train_split_point:]
-    m2_test_end_times = m2_end_times[train_split_point:]
-    
-
-    # test_files = file[train_split_point:]
-    # test_start_times = start_times[train_split_point:]
-    # test_end_times = end_times[train_split_point:]
-
-    # # Create annotations df for train and test sets
-    # train_annotations_df = annotations_df[:train_split_point]
-    # test_annotations_df = annotations_df[train_split_point:]
-
-    # Merge the train and test annotation dataframes
-    train_annotations_df = pd.concat([f1_train_annotations, m2_train_annotations], axis=0)
-    test_annotations_df = pd.concat([f1_test_annotations, m2_test_annotations], axis=0)
-
-    # Merge the train and test file lists
-    train_files = f1_train_files + m2_train_files
-    test_files = f1_test_files + m2_test_files
-
-    # Merge the train and test start times
-    train_start_times = f1_train_start_times + m2_train_start_times
-    train_end_times = f1_train_end_times + m2_train_end_times
-    test_start_times = f1_test_start_times + m2_test_start_times
-    test_end_times = f1_test_end_times + m2_test_end_times
-
-
+    train_start_times = [start_time / 1000 for start_time in train_start_times]
+    train_end_times = [end_time / 1000 for end_time in train_end_times]
+    test_start_times = [start_time / 1000 for start_time in test_start_times]
+    test_end_times = [end_time / 1000 for end_time in test_end_times]
 
     train_segmented_index = audformat.segmented_index(train_files, train_start_times, train_end_times)
     test_segmented_index = audformat.segmented_index(test_files, test_start_times, test_end_times)
@@ -567,7 +590,20 @@ def transform_jl_dataset(emotion: str):
 
     train_dataset = datasets.Dataset.from_pandas(train_dataset_df)
     test_dataset = datasets.Dataset.from_pandas(test_dataset_df)
+
+    # Save jl_train and jl_test to disk
+    train_dataset.save_to_disk(root + "/data/jl/train_dataset")
+    test_dataset.save_to_disk(root + "/data/jl/test_dataset")
     
+    return train_dataset, test_dataset
+
+# Loads JL formatted datasets from disk 
+def load_jl_datasets_disk():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    repo_path = os.path.dirname(os.path.dirname(file_path))
+
+    train_dataset = datasets.load_from_disk(repo_path + "/data/jl/train_dataset")
+    test_dataset = datasets.load_from_disk(repo_path + "/data/jl/test_dataset")
     return train_dataset, test_dataset
     
 
