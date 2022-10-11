@@ -20,7 +20,7 @@ import audeer, audmetric
 import audiofile
 import typing
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,2,3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
 
 metrics = {
     'PCC': audmetric.pearson_cc,
@@ -414,7 +414,10 @@ def load_model(model_path: str=None):
         model_path = os.path.dirname(os.path.realpath(__file__))
     processor = Wav2Vec2Processor.from_pretrained(model_path)
     print(model_path)
+    # HASEL 
+    model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
     model = EmotionModel.from_pretrained(model_path)
+    model.to(device)
     # train_model(model)
     return processor, model
 
