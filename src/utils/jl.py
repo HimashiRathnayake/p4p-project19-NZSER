@@ -26,6 +26,39 @@ m2 = [] # Contains wav files and annotations for male2
 f1_dfs = []
 m2_dfs = []
 
+def load_jl_as_dfs():
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+
+    # Load csv files with annotations
+    csv_files = glob.glob(root + "/data/jl/*.csv")
+
+    # f1 = female1, m2 = male2, df = dataframe
+    f1_aro_df = pd.read_csv(csv_files[4])
+    f1_val_df = pd.read_csv(csv_files[5])
+    m2_aro_df = pd.read_csv(csv_files[6])
+    m2_val_df = pd.read_csv(csv_files[7])
+
+    f1_aro_df = f1_aro_df[['bundle', 'start', 'end', 'labels' ]]
+
+    f1_aro_df = f1_aro_df.rename(columns = {'labels': 'arousal'})
+    f1_dom_df = f1_val_df['labels']
+    f1_dom_df = f1_dom_df.rename('dominance')
+    f1_val_df = f1_val_df['labels']
+    f1_val_df = f1_val_df.rename('valence')
+
+    m2_aro_df = m2_aro_df[['bundle', 'start', 'end', 'labels']]
+    m2_aro_df = m2_aro_df.rename(columns = {'labels': 'arousal'})
+    m2_dom_df = m2_val_df['labels']
+    m2_dom_df = m2_dom_df.rename('dominance')
+    m2_val_df = m2_val_df['labels']
+    m2_val_df = m2_val_df.rename('valence')
+
+    f1_mer_df = pd.concat([f1_aro_df, f1_dom_df, f1_val_df], axis=1)
+    m2_mer_df = pd.concat([m2_aro_df, m2_dom_df, m2_val_df], axis=1)
+
+    return f1_mer_df, m2_mer_df
+
 def load_jl() -> List[List]:
     """
     Load the JL-Corpus dataset and annotations.
