@@ -70,6 +70,8 @@ def load_recola():
 
 
 def test_recola(processor, model):
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
     # Load the recola dataset
     recola_data = load_recola()
 
@@ -84,7 +86,7 @@ def test_recola(processor, model):
     ccc_val = []
 
     # Feed the recola data to the model generate predictions and store them in the lists
-    with open('recola_results.txt', 'w', encoding='utf-8') as f:
+    with open(f'{root}/results/recola_results/recola_results - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.txt', 'w', encoding='utf-8') as f:
         df = pd.DataFrame(columns=['bundle', 'pearson arousal', 'pearson valence', 'ccc arousal', 'ccc valence'])
         for i, data in enumerate(recola_data):
             f.write(f"True arousal,Predicted arousal,True valence,Predicted valence\n")
@@ -148,7 +150,7 @@ def test_recola(processor, model):
 
            
 
-        filename = f'recola_results_ - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.csv'
+        filename = f'{root}/results/recola_results/recola_results_ - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.csv'
         df.to_csv(filename, index=False)
     # Calculate the CCC and print it
     print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
