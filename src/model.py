@@ -338,8 +338,8 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
     training_args = TrainingArguments(
         output_dir=root + f"/data/{datasetName}/training/",
         logging_dir=log_root,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=8,
+        per_device_train_batch_size=4,
+        per_device_eval_batch_size=4,
         gradient_accumulation_steps=2,
         evaluation_strategy='epoch',
         logging_strategy='epoch',
@@ -408,10 +408,16 @@ def train_model(trainDataset: Dataset, testDataset: Dataset=None, datasetName: s
 
         trainer.save_model(f'jlFinetunedOn_{datasetName}_modelSave-{datetime.datetime.now().strftime("%H-%M_%d-%m-%Y")}' )
 
+    return processor, model
+
 def load_model(model_path: str=None):
     # load model from local repo
     if model_path is None:
         model_path = os.path.dirname(os.path.realpath(__file__))
+    else:
+        file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+        root = (os.path.dirname(file_path))
+        model_path = root + model_path
     processor = Wav2Vec2Processor.from_pretrained(model_path)
     print(model_path)
     # HASEL 
