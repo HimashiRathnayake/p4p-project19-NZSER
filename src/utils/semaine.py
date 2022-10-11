@@ -29,7 +29,7 @@ def prune_semaine():
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    sessions_path = root + "/data/semaine/sessions"
+    sessions_path = root + "/data/semaine/Sessions"
 
     # Iterate through folders for renaming
     for folder in os.listdir(sessions_path):
@@ -43,7 +43,7 @@ def load_semaine():
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    sessions_path = root + "/data/semaine/sessions"
+    sessions_path = root + "/data/semaine/Sessions"
     annotations_path = root + "/data/semaine/TrainingInput"
 
     dfs = []
@@ -89,7 +89,12 @@ def test_semaine(processor, model):
     ccc_val = []
     pearson_aro = []
     pearson_val = []
-    with open('semaine_results.txt', 'w', encoding='utf-8') as f:
+
+    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    root = os.path.dirname(os.path.dirname(file_path))
+    semaine_results_path = root + '/results/semaine_results/semaine_results.txt'
+
+    with open(semaine_results_path, 'w', encoding='utf-8') as f:
         f.write(f"True arousal,Predicted arousal,True valence,Predicted valence\n")
         df = pd.DataFrame(columns=[
                           'bundle', 'pearson arousal', 'pearson valence', 'ccc arousal', 'ccc valence'])
@@ -165,8 +170,6 @@ def test_semaine(processor, model):
             df = pd.concat([df, pd.DataFrame({'bundle': data[0]['bundle'][0], 'pearson arousal': pearson_aro[i], 'pearson valence': pearson_val[i],
                                               'ccc arousal': ccc_aro[i], 'ccc valence': ccc_val[i]}, index=[0])], ignore_index=True)
 
-            # Print the average ccc and pearsons accuracy for each bundle of the dataframe and save to the results file
-            print(df.groupby('bundle').mean())
         # Calculate the CCC for arousal and valence and print it
         # print(
         #     f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
