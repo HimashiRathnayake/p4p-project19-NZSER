@@ -272,6 +272,30 @@ def load_jl_results():
             
     return jl_results
 
+# Return df for f1 and m2 that only contain primary emotions
+def primary_emotions_df(f1_df, m2_df):
+    primary_emotions = ['neutral', 'happy', 'sad', 'angry', 'excited']
+
+    # Filter out all non-primary emotions
+    f1_ang_df = f1_df[f1_df['bundle'].str.contains('angry')]  
+    f1_exc_df = f1_df[f1_df['bundle'].str.contains('excited')]
+    f1_hap_df = f1_df[f1_df['bundle'].str.contains('happy')]
+    f1_neu_df = f1_df[f1_df['bundle'].str.contains('neutral')]
+    f1_sad_df = f1_df[f1_df['bundle'].str.contains('sad')]
+     
+    m2_ang_df = m2_df[m2_df['bundle'].str.contains('angry')]
+    m2_exc_df = m2_df[m2_df['bundle'].str.contains('excited')]
+    m2_hap_df = m2_df[m2_df['bundle'].str.contains('happy')]
+    m2_neu_df = m2_df[m2_df['bundle'].str.contains('neutral')]
+    m2_sad_df = m2_df[m2_df['bundle'].str.contains('sad')]
+
+    # Concatenate all primary emotion dataframes
+    f1_prim_df = pd.concat([f1_ang_df, f1_exc_df, f1_hap_df, f1_neu_df, f1_sad_df], axis=0)
+    m2_prim_df = pd.concat([m2_ang_df, m2_exc_df, m2_hap_df, m2_neu_df, m2_sad_df], axis=0)
+    
+    return f1_df, m2_df
+
+
 def display_jl_quadrant_chart(start_index: int, end_index: int):
     # Load in the results of the JL-corpus test text file
     jl_results = load_jl_results()
