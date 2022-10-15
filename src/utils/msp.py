@@ -1,40 +1,53 @@
+from utils.calc import ccc, map_msp_to_w2v
+from model import process_func, load_model
+from librosa import load
+import numpy as np
+import pandas as pd
 import sys
 import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import pandas as pd
-import numpy as np
-from librosa import load
-from model import process_func, load_model
-from utils.calc import ccc, map_msp_to_w2v
 
 SAMPLING_RATE = 16000
 msp_data = []
 
+
 def load_msp() -> list[pd.DataFrame, np.ndarray]:
+    r"""
+    Loads MSP-podcast dataset from disk and returns it as a Pandas DataFrame
+    MSP files should be in the following path:
+    /{REPO_DIRECTORY}/data/msp
+    """
     # Obtain root file paths
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     msp_path = root + "/data/msp"
     msp_data = []
-    
+
     # Load csv file with annotations
     full_df = pd.read_csv(msp_path + "/labels_concensus.csv", delimiter=',')
-    full_df = full_df.drop(['EmoClass', 'EmoDom', 'SpkrID', 'Gender', 'Split_Set'], axis=1)
+    # Filter out unnecessary dimensions
+    full_df = full_df.drop(
+        ['EmoClass', 'EmoDom', 'SpkrID', 'Gender', 'Split_Set'], axis=1)
 
     full_list_annot = full_df.values.tolist()
-    # Setup progress bar
-    total = len(full_list_annot)
     # Merge list of annotations and wav files in list
     for row in full_list_annot:
         wav_file = load(msp_path + '/' + row[0], sr=SAMPLING_RATE)
-        msp_data.append([row ,wav_file])
-    
+        msp_data.append([row, wav_file])
+
     # Return merged list of annotations and wav files
     return msp_data
 
+
 def test_msp(processor, model):
-    # Load msp data
+    r"""
+    Loads MSP-podcast dataset from disk and tests against a provided model
+    Model should be loaded prior to calling this function using the load_model function in model.py
+    MSP files should be in the following path:
+    /{REPO_DIRECTORY}/data/msp
+    """
     msp_data = load_msp()
     load_model()
 
@@ -45,7 +58,8 @@ def test_msp(processor, model):
     pred_aro = []
     # Feed msp data to model and generate predictions
     for i, clip in enumerate(msp_data):
-        pred_vals = process_func([[clip[1][0]]], sampling_rate=SAMPLING_RATE, model=model, processor=processor)
+        pred_vals = process_func(
+            [[clip[1][0]]], sampling_rate=SAMPLING_RATE, model=model, processor=processor)
         mapped_true_vals = map_msp_to_w2v(clip[0][1], clip[0][2])
         # print(f'Filename: {clip[0][0]}\nPredicted arousal: {pred_vals[0][0]:.2f}, Predicted valence: {pred_vals[0][2]:.2f}')
         # print(f'True arousal: {mapped_true_vals[0]:.2f}, True valence: {mapped_true_vals[1]:.2f}')
