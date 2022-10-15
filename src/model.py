@@ -24,7 +24,7 @@ import typing
 os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
 
 metrics = {
-    # 'PCC': audmetric.pearson_cc,
+    'PCC': audmetric.pearson_cc,
     'CCC': audmetric.concordance_cc,
     # 'MSE': audmetric.mean_squared_error,
     # 'MAE': audmetric.mean_absolute_error,
@@ -116,7 +116,7 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
         super().__init__(config)
 
         self.config = config
-        self.wav2vec2 = Wav2Vec2Model(config)
+        self.wav2vec2 = Wav2Vec2ForSpeechClassification(config)
         self.classifier = RegressionHead(config)
         self.init_weights()
 
@@ -133,14 +133,14 @@ class EmotionModel(Wav2Vec2PreTrainedModel):
         return hidden_states, logits
 
 
-class Wav2Vec2ClassificationHead(torch.nn.Module):
+class Wav2Vec2ClassificationHead(nn.Module):
     """Head for wav2vec classification task."""
 
     def __init__(self, config):
         super().__init__()
-        self.dense = torch.nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = torch.nn.Dropout(config.final_dropout)
-        self.out_proj = torch.nn.Linear(config.hidden_size, config.num_labels)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.final_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
 
     def forward(self, features, **kwargs):
         x = features
@@ -318,6 +318,12 @@ def compute_metrics(p: EvalPrediction):
 
         for idx in range(dim):
             if idx != 1:
+                if idx == 0:
+                    print(
+                        f'{name} Arousal: {metric(p.label_ids[:, idx], preds[:, idx])}')
+                elif idx == 2:
+                    print(
+                        f'{name} Valence: {metric(p.label_ids[:, idx], preds[:, idx])}')
                 score += metric(p.label_ids[:, idx], preds[:, idx])
 
         scores[name] = score / 2
@@ -354,13 +360,13 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
     training_args = TrainingArguments(
         output_dir=root + f"/data/{datasetName}/training/",
         logging_dir=log_root,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
         gradient_accumulation_steps=2,
         evaluation_strategy='epoch',
         logging_strategy='epoch',
         save_strategy='epoch',
-        num_train_epochs=30,
+        num_train_epochs=10,
         save_steps=1,
         eval_steps=1,
         logging_steps=1,
@@ -401,6 +407,8 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
     trainer.train()
     trainer.save_model(
         f'modelSave-{datetime.datetime.now().strftime("%H-%M_%d-%m-%Y")}')
+    # trainer.push_to_hub(
+    #     "Part4Project19/wav2vec2-large-robust-jl-corpus-finetuned")
     return processor, model
 
 
@@ -417,7 +425,7 @@ def load_model(model_path: str = None):
     print(model_path)
     # For HASEL if git lfs is not functional
     # model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
-    model = EmotionModel.from_pretrained(model_path)
+    model = Wav2Vec2ForSpeechClassification.from_pretrained(model_path)
     model.to(device)
     # train_model(model)
     return processor, model
@@ -427,7 +435,7 @@ def process_func(
     x: np.ndarray,
     sampling_rate: int,
     embeddings: bool = False,
-    model: EmotionModel = None,
+    model=None,
     processor: Wav2Vec2Processor = None,
 ) -> np.ndarray:
     r"""Predict emotions or extract embeddings from raw audio signal."""
@@ -441,7 +449,7 @@ def process_func(
 
     # run through model
     with torch.no_grad():
-        y = model(y)[0 if embeddings else 1]
+        y = model(y).logits
 
     # convert to numpy
     y = y.detach().cpu().numpy()
