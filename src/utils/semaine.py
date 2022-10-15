@@ -2,29 +2,28 @@ import os
 import glob
 import shutil
 import datasets
+import audformat
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from librosa import load
-import audformat
 from model import process_func
 from utils.audio import get_audio_chunks_semaine
 from utils.calc import ccc, map_arrays_to_w2v, pearson, map_arrays_to_quadrant
 from datetime import datetime
-import matplotlib.pyplot as plt
-
 from utils.display import quadrant_chart
 
-
-semaine_data = []
+# CONSTANTS
 SAMPLING_RATE = 16000
 SEMAINE_FRAME_SIZE = 40
-''' 
-One time use only.
-'''
-# Renames folders in semaine that dont have at least 2 text files inside with a "NA"
 
 
 def prune_semaine():
+    r"""
+    Renames folders in SEMAINE that don't have at least two text files. This is done to avoid loading sessions
+    that don't have annotations.
+    Dataset files should be in the path specified in load_semaine() function.
+    """
     # Obtain root file paths
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
@@ -39,6 +38,12 @@ def prune_semaine():
 
 
 def load_semaine():
+    r"""
+    Loads SEMAINE dataset from disk and returns it as a Pandas DataFrame
+    SEMAINE files should be in the following path:
+    /{REPO_DIRECTORY}/data/semaine/Sessions/{SessionNumber}
+    /{REPO_DIRECTORY}/data/semaine/TrainingInput/{SessionNumber}
+    """
     # Obtain root file paths
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
@@ -48,6 +53,7 @@ def load_semaine():
 
     dfs = []
     signals = []
+    semaine_data = []
 
     dbgO1 = []
     dbgO2 = []
@@ -75,7 +81,11 @@ def load_semaine():
 
 
 def test_semaine(processor, model):
-    # Load the semaine dataset
+    r"""
+    Loads SEMAINE dataset as DataFrame and performs testing on it.
+    Requires model and processor to be loaded before calling this function for process_func to work.
+    Dataset files should be in the path specified in load_semaine() function.
+    """
     semaine_data = load_semaine()
 
     # Create lists for storing the true and predicted arousal and valence values
@@ -90,7 +100,8 @@ def test_semaine(processor, model):
     pearson_aro = []
     pearson_val = []
 
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     semaine_results_path = root + '/results/semaine_results/semaine_results.txt'
 
@@ -181,18 +192,25 @@ def test_semaine(processor, model):
 
     return ccc_aro, ccc_val
 
+
 def load_semaine_results():
-    # Load in the results of the semaine corpus txt file
+    r"""
+    This function can be used to load into dataframes the results generated 
+    from the test_semaine function from a CSV file.
+    It then returns a dataframe containing the parsed results of True Arousal, Predicted Arousal, tru val. etc. 
+    /{REPO_DIRECTORY}/results/semaine_results/semaine_plts/
+    """
     semaine_results = []
     file_results = []
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     semaine_results_path = root + '/semaine_results/semaine_results.txt'
 
     with open(semaine_results_path, 'r', encoding='utf-8') as f:
         for line in f:
-            # Skip the first line
 
+            # Skip the first line in the file.
             if line == 'True arousal,Predicted arousal,True valence,Predicted valence\n':
                 continue
 
@@ -214,17 +232,24 @@ def load_semaine_results():
 
 
 def plot_semaine_results(start_index: int, end_index: int):
+    r"""
+    Plots the results of a model's prediction of same results, with input parameters defining
+    how much of the full range of values to plot.
+    Saves plot to the directory:
+    /{REPO_DIRECTORY}/results/semaine_results/semaine_plts/
+    """
     # Load in the results of the semaine corpus txt file
     semaine_results = load_semaine_results()
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    semaine_plots = root + '/semaine_results/semaine_plts'
+    semaine_plots = root + '/results/semaine_results/semaine_plts/'
 
-    if(start_index < 0 or start_index >= len(semaine_results)):
+    if (start_index < 0 or start_index >= len(semaine_results)):
         print('Invalid start index')
         return
 
-    if(end_index < start_index or end_index >= len(semaine_results)):
+    if (end_index < start_index or end_index >= len(semaine_results)):
         print('Invalid end index')
         return
 
@@ -261,8 +286,14 @@ def plot_semaine_results(start_index: int, end_index: int):
         plt.close()
 
 
-# Move all semaine wav files into a single folder and name them to the session number
 def move_semaine_wav_files():
+    r"""
+    Move all semaine WAV files into a single folder and rename them to the session
+    number.
+    Assumes that the WAV files are in their session folders in the path listed below.
+    /{REPO_DIRECTORY}/data/semaine/Sessions/
+
+    """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
@@ -286,8 +317,12 @@ def move_semaine_wav_files():
                               destination_path + new_file_name)
 
 
-# Move semaine annotatoin files into a single folder and name them to the session number
 def move_semaine_annotation_files():
+    r"""
+    Moves semaine annotatoin files into a single folder and renames them to the session number
+    Assumes the annotation files are in a directory with the path:
+    /{REPO_DIRECTORY}/data/semaine/TrainingInput/
+    """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
@@ -306,11 +341,18 @@ def move_semaine_annotation_files():
         os.rename(destination_path + os.path.basename(file_name),
                   destination_path + new_file_name)
 
+
 def map_annotation(x):
     return (x+1)/2
 
-# Iterates through semaine annotations and creates new mapped columns for arousal and valence, and adds start end times
+
 def map_semaine_annotations():
+    r"""
+    Iterates through semaine annotations and creates new mapped columns for arousal and valence.
+    Also adds columns for start and end times
+    Requires CSVs to be stored in the path below:
+    /{REPO_DIRECTORY}/data/semaine/semaine_all_files/
+    """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
@@ -332,9 +374,17 @@ def map_semaine_annotations():
             df['end'] = df['Time'] + 0.02
             df.to_csv(annotations_path + file, index=False)
 
-# Wav2Vec2 model has a minimum input size of 25ms
-# Semaine annotations are 20ms long, this function merges 2 20ms annotations into 1 40ms annotation
+
 def interpolate_semaine_annotations():
+    r"""
+    WIP.
+    Wav2Vec2 model has a minimum input size of 25ms.
+    Semaine annotations are 20ms long, this function merges 2 20ms annotations
+    into 1 40ms annotation
+    This function is designed to be called once, after move_semaine_annotation_files is called
+    Requires CSVs to be stored in the path below:
+    /{REPO_DIRECTORY}/data/semaine/semaine_all_files/
+    """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
@@ -353,8 +403,15 @@ def interpolate_semaine_annotations():
                 np.arange(len(df))//2).mean()
             df.to_csv(annotations_path + file, index=False)
 
-# Merge Semaine CSVs into one df
+
 def merge_semaine_csvs():
+    r"""
+    Merges Semaine CSVs into one df
+    Relies on csvs being stored in a folder that 
+    has the path /{REPO_DIRECTORY}/data/semaine/semaine_all_files/
+    This function is usually called once, after the move_semaine_annotation_files function
+    has been called.
+    """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
@@ -368,24 +425,30 @@ def merge_semaine_csvs():
     return df
 
 
-# Transform semaine dataset into datset format used by audeering model
 def transform_semaine_dataset():
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    r"""
+    Transform semaine dataset into dataset format used by audEERING model
+    Requires annotations and WAV files to be merged into a single folder with the path
+    /{REPO_DIRECTORY}/data/semaine/semaine_all_files/
+    """
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
 
     # load semaine annotation df
     semaine_df = merge_semaine_csvs()
     # Filter df to include filename, start, end, arousal, valence columns
-    semaine_df = semaine_df[['filename', 'start', 'end', 'arousal_mapped', 'valence_mapped']]
+    semaine_df = semaine_df[['filename', 'start',
+                             'end', 'arousal_mapped', 'valence_mapped']]
     # Rename columns to match audeering format
     semaine_df.rename(columns={
         'filename': 'file',
-           'arousal_mapped': 'arousal',
-            'valence_mapped': 'valence'
-        }, inplace=True)
+        'arousal_mapped': 'arousal',
+        'valence_mapped': 'valence'
+    }, inplace=True)
 
     # Store annotations in a separate df
-    annotations_df = semaine_df[[ 'arousal', 'valence']]
+    annotations_df = semaine_df[['arousal', 'valence']]
     # Insert new column 'dominance' in between arousal and valence columns and store valence values inside it
     # This is done because audeering model expects 3 columns for annotations
     annotations_df.insert(1, 'dominance', semaine_df['valence'])
@@ -397,7 +460,7 @@ def transform_semaine_dataset():
     end = semaine_df['end'].tolist()
 
     # append dir name for each file along with the '.wav' extension
-    semaine_wav_files_dir = root + "/data/semaine/semaine_all_files/" 
+    semaine_wav_files_dir = root + "/data/semaine/semaine_all_files/"
     file = [f'{semaine_wav_files_dir}{fi}.wav' for fi in file]
 
     # Split annotations_df and file, start, end 70/30 into train and test sets
@@ -411,10 +474,11 @@ def transform_semaine_dataset():
     train_end = end[:train_split]
     test_end = end[train_split:]
 
-
     # Create segmented index (MultiIndex) for the datasets
-    segmented_index_train = audformat.segmented_index(train_file, train_start, train_end)
-    segmented_index_test = audformat.segmented_index(test_file, test_start, test_end)
+    segmented_index_train = audformat.segmented_index(
+        train_file, train_start, train_end)
+    segmented_index_test = audformat.segmented_index(
+        test_file, test_start, test_end)
 
     # Create series for datasets
     train_series = pd.Series(
@@ -431,7 +495,6 @@ def transform_semaine_dataset():
         name='labels',
     )
 
-
     semaine_train_dataset_df = train_series.reset_index()
     semaine_test_dataset_df = test_series.reset_index()
     semaine_train_dataset_df.start = semaine_train_dataset_df.start.dt.total_seconds().astype('str')
@@ -439,11 +502,15 @@ def transform_semaine_dataset():
     semaine_train_dataset_df.end = semaine_train_dataset_df.end.dt.total_seconds().astype('str')
     semaine_test_dataset_df.end = semaine_test_dataset_df.end.dt.total_seconds().astype('str')
 
-    semaine_train_dataset_df['input_values'] = semaine_train_dataset_df[['file', 'start', 'end']].values.tolist()
-    semaine_test_dataset_df['input_values'] = semaine_test_dataset_df[['file', 'start', 'end']].values.tolist()
+    semaine_train_dataset_df['input_values'] = semaine_train_dataset_df[[
+        'file', 'start', 'end']].values.tolist()
+    semaine_test_dataset_df['input_values'] = semaine_test_dataset_df[[
+        'file', 'start', 'end']].values.tolist()
 
-    semaine_train_dataset_df = semaine_train_dataset_df[['labels', 'input_values']]
-    semaine_test_dataset_df = semaine_test_dataset_df[['labels', 'input_values']]
+    semaine_train_dataset_df = semaine_train_dataset_df[[
+        'labels', 'input_values']]
+    semaine_test_dataset_df = semaine_test_dataset_df[[
+        'labels', 'input_values']]
 
     train_dataset = datasets.Dataset.from_pandas(semaine_train_dataset_df)
     test_dataset = datasets.Dataset.from_pandas(semaine_test_dataset_df)
@@ -454,17 +521,23 @@ def transform_semaine_dataset():
 
     return train_dataset, test_dataset
 
-# Load semaine datasets from disk
+
 def load_semaine_datasets():
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    r"""
+    Load Dataset versions of semaine datasets from disk
+    Datasets should be stored in the following path:
+    /{REPO_DIRECTORY}/data/semaine/{train/test}_dataset
+    """
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    train_dataset = datasets.Dataset.load_from_disk(root + "/data/semaine/train_dataset")
-    test_dataset = datasets.Dataset.load_from_disk(root + "/data/semaine/test_dataset")
+    train_dataset = datasets.Dataset.load_from_disk(
+        root + "/data/semaine/train_dataset")
+    test_dataset = datasets.Dataset.load_from_disk(
+        root + "/data/semaine/test_dataset")
 
     return train_dataset, test_dataset
 
+
 if __name__ == "__main__":
-    move_semaine_wav_files()
-    move_semaine_annotation_files()
-    merge_semaine_csvs()
-    # semaine_results()
+    pass
