@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from librosa import load
 from datasets import load_dataset, Audio, Dataset
-from torch.utils.data import DataLoader 
+from torch.utils.data import DataLoader
 
 from model import process_func
 from utils.audio import get_audio_chunks_recola
@@ -19,7 +19,10 @@ SAMPLING_RATE = 16000
 
 def load_recola():
     """
-    Load the Recola dataset and annotations
+    Load the RECOLA dataset and annotations.
+    Returns: A list of tuples containing the audio file path and the annotations
+
+    This function is called before testing the model on the RECOLA dataset.
     """
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
@@ -65,12 +68,27 @@ def load_recola():
     for i, wav_file in enumerate(wav_files):
         sig = load(wav_file, sr=SAMPLING_RATE)
         recola_data.append([mer_dfs[i], sig])
+
     print("Finished loading Recola data")
+
     return recola_data
 
 
 def test_recola(processor, model):
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    '''
+    Test the model on the RECOLA dataset.
+    The arguments should be the processor and model retrieved from the load_model() function.
+    The arousal and valence predictions are stored in a txt file.
+    The CCC and Pearsons values are stored in a csv file.
+
+    The results files are saved in the path below:
+    /[REPO_DIRECTORY]/results/recola_results/recola_results_[DATE_TIME].txt
+    /[REPO_DIRECTORY]/results/recola_results/[FILENAME].csv
+
+    Returns: The CCC for arousal as a list and the CCC for valence as a list
+    '''
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     # Load the recola dataset
     recola_data = load_recola()
@@ -87,10 +105,13 @@ def test_recola(processor, model):
 
     # Feed the recola data to the model generate predictions and store them in the lists
     with open(f'{root}/results/recola_results/recola_results - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.txt', 'w', encoding='utf-8') as f:
-        df = pd.DataFrame(columns=['bundle', 'pearson arousal', 'pearson valence', 'ccc arousal', 'ccc valence'])
+        df = pd.DataFrame(columns=[
+                          'bundle', 'pearson arousal', 'pearson valence', 'ccc arousal', 'ccc valence'])
         for i, data in enumerate(recola_data):
-            f.write(f"True arousal,Predicted arousal,True valence,Predicted valence\n")
-            print("Processing file " + str(i) + " out of " + str(len(recola_data)))
+            f.write(
+                f"True arousal,Predicted arousal,True valence,Predicted valence\n")
+            print("Processing file " + str(i) +
+                  " out of " + str(len(recola_data)))
             # Get the true arousal and valence values
             true_values = data[0]
 
@@ -98,13 +119,16 @@ def test_recola(processor, model):
             f.write(f"{true_values['bundle'][0]}\n")
 
             # Average the true values from the dataframe
-            true_values['aro_average'] = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1)
-            true_values['val_average'] = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1)
+            true_values['aro_average'] = true_values[[
+                'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1)
+            true_values['val_average'] = true_values[[
+                'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1)
 
             # Add true values to lists
             true_aro_mapped = []
             true_val_mapped = []
-            true_aro_mapped, true_val_mapped = map_arrays_to_w2v(true_values['aro_average'], true_values['val_average'])
+            true_aro_mapped, true_val_mapped = map_arrays_to_w2v(
+                true_values['aro_average'], true_values['val_average'])
             true_aro.append(true_aro_mapped)
             true_val.append(true_val_mapped)
 
@@ -119,11 +143,13 @@ def test_recola(processor, model):
 
             for j, chunk in enumerate(chunks):
                 chunk = np.array(chunk, dtype=np.float32)
-                results = process_func([[chunk]], SAMPLING_RATE, model=model, processor=processor)
+                results = process_func(
+                    [[chunk]], SAMPLING_RATE, model=model, processor=processor)
                 file_pred_aro.append(results[0][0])
                 file_pred_val.append(results[0][2])
                 # Write the true and predicted arousal and valence values to the results file
-                f.write(f"{true_aro_mapped[j]},{results[0][0]},{true_val_mapped[j]},{results[0][2]}\n")
+                f.write(
+                    f"{true_aro_mapped[j]},{results[0][0]},{true_val_mapped[j]},{results[0][2]}\n")
 
             min_array_length = min(len(true_aro[i]), len(file_pred_aro))
             file_pred_aro = file_pred_aro[:min_array_length]
@@ -137,31 +163,42 @@ def test_recola(processor, model):
             # Calculate the CCC for the predicted arousal and valence values
             ccc_aro.append(ccc(np.array(true_aro[i]), np.array(file_pred_aro)))
             ccc_val.append(ccc(np.array(true_val[i]), np.array(file_pred_val)))
-            pearson_aro = pearson(np.array(true_aro[i]), np.array(file_pred_aro))
-            pearson_val = pearson(np.array(true_val[i]), np.array(file_pred_val))
+            pearson_aro = pearson(
+                np.array(true_aro[i]), np.array(file_pred_aro))
+            pearson_val = pearson(
+                np.array(true_val[i]), np.array(file_pred_val))
 
             # Concat ccc and pearson values to dataframe
             df = pd.concat([df, pd.DataFrame({'bundle': data[0]['bundle'][0], 'pearson arousal': pearson_aro, 'pearson valence': pearson_val,
                                               'ccc arousal': ccc_aro[i], 'ccc valence': ccc_val[i]}, index=[0])], ignore_index=True)
 
-            
-            print(f'Session {i} - CCC arousal: {ccc_aro[i]:.2f}, CCC valence: {ccc_val[i]:.2f}')
-            print(f'Session {i} - Pearson arousal: {pearson_aro:.2f}, Pearson valence: {pearson_val:.2f}')
-
-           
+            print(
+                f'Session {i} - CCC arousal: {ccc_aro[i]:.2f}, CCC valence: {ccc_val[i]:.2f}')
+            print(
+                f'Session {i} - Pearson arousal: {pearson_aro:.2f}, Pearson valence: {pearson_val:.2f}')
 
         filename = f'{root}/results/recola_results/recola_results_ - {datetime.now().strftime("%H-%M_%d-%m-%Y")}.csv'
         df.to_csv(filename, index=False)
     # Calculate the CCC and print it
-    print(f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
+    print(
+        f'Avg. Semaine Acc. per session - CCC arousal: {np.mean(ccc_aro):.2f}, CCC valence: {np.mean(ccc_val):.2f}')
     return ccc_aro, ccc_val
 
 
 def load_recola_results():
+    '''
+    Loads the results of the RECOLA model for the specified txt file from the following directory:
+    [REPO_DIRECTORY]/results/recola_results/
+
+    Returns: A dataframe containing the results of the RECOLA model
+
+    This function is called when creating the quadrant charts for the RECOLA corpus
+    '''
     # Load in the results of the recola corpus txt file
     recola_results = []
     file_results = []
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     recola_results_path = root + '/recola_results/recola_results.txt'
     with open(recola_results_path, 'r', encoding='utf-8') as f:
@@ -186,24 +223,30 @@ def load_recola_results():
     return recola_results
 
 
-
 def display_recola_quadrant_chart(start_index: int, end_index: int):
+    '''
+    Display the quadrant chart for the RECOLA corpus for the given start and end file numbers
+    Note max end index is 150 as there are 150 files for each speaker in the RECOLA corpus
+    The chart is saved as a png in the following directory:
+    [REPO_DIRECTORY]/results/recola_results/recola_plts/
+    '''
     # Load in the results of the JL-corpus test text file
     recola_results = load_recola_results()
-    file_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    file_path = os.path.realpath(os.path.join(
+        os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
     recola_plots = root + '/recola_results/recola_plts'
-    
+
     if(start_index < 0 or start_index >= len(recola_results)):
         print('Invalid start index')
         return
-    
+
     if(end_index < start_index or end_index >= len(recola_results)):
         print('Invalid end index')
         return
 
     # Iterate through each file and calculate the arousal and valence values
-    for i in range(start_index , end_index + 1): # Python exclusive of end index
+    for i in range(start_index, end_index + 1):  # Python exclusive of end index
 
         results = recola_results[i]
         # Retrieve true arousal and valence values from dataframe
@@ -217,7 +260,6 @@ def display_recola_quadrant_chart(start_index: int, end_index: int):
         # Map true arousal and valence values from [0, 1] -> [-1, 1]
         pred_aro, pred_val = map_arrays_to_quadrant(pred_aro, pred_val)
         true_aro, true_val = map_arrays_to_quadrant(true_aro, true_val)
-        
 
         # Take values from position 90 to 110
         true_aro = true_aro[90:110]
@@ -237,13 +279,16 @@ def display_recola_quadrant_chart(start_index: int, end_index: int):
         plt.close()
 
 
-
 def recola_dataset():
+    '''
+    This function is now deprecated.
+    Initial attempt at transforming the RECOLA dataset into a format that can be used by the model.
+    '''
     # Create dictionary for loading in Recola datasets for load_dataset
 
     # Find all Recola audio file names
     file_path = os.path.realpath(os.path.join(
-    os.getcwd(), os.path.dirname(__file__)))
+        os.getcwd(), os.path.dirname(__file__)))
     root = (os.path.dirname(os.path.dirname(file_path)))
     print(root)
     wav_files = glob.glob(root + "/data/recola/RECOLA-Audio-recordings/*.wav")
@@ -258,23 +303,25 @@ def recola_dataset():
     recola_data = load_recola()
     print("Finished loading Recola annotations")
     train_dict = {
-            'audio': [],
-            'arousal': [],
-            'valence': []
+        'audio': [],
+        'arousal': [],
+        'valence': []
     }
     test_dict = {
-            'audio': [],
-            'arousal': [],
-            'valence': []
+        'audio': [],
+        'arousal': [],
+        'valence': []
     }
-    
+
     # Add the recola annotations to train_dict and test_dict
     for i in range(0, 18):
         true_values = recola_data[i][0]
 
         # Average the true values from the dataframe
-        true_aro_avg = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1).to_numpy()
-        true_val_avg = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1).to_numpy()
+        true_aro_avg = true_values[['A1', 'A2', 'A3', 'A4', 'A5']].mean(
+            axis=1).to_numpy()
+        true_val_avg = true_values[['V1', 'V2', 'V3', 'V4', 'V5']].mean(
+            axis=1).to_numpy()
 
         # Add true values to lists
         train_dict['arousal'].append(true_aro_avg)
@@ -285,18 +332,23 @@ def recola_dataset():
         true_values = recola_data[i][0]
 
         # Average the true values from the dataframe
-        true_aro_avg = true_values[[ 'A1', 'A2', 'A3', 'A4', 'A5']].mean(axis=1).to_numpy()
-        true_val_avg = true_values[[ 'V1', 'V2', 'V3', 'V4', 'V5']].mean(axis=1).to_numpy()
+        true_aro_avg = true_values[['A1', 'A2', 'A3', 'A4', 'A5']].mean(
+            axis=1).to_numpy()
+        true_val_avg = true_values[['V1', 'V2', 'V3', 'V4', 'V5']].mean(
+            axis=1).to_numpy()
 
         # Add true values to lists
         test_dict['arousal'].append(true_aro_avg)
         test_dict['valence'].append(true_val_avg)
         test_dict['audio'].append(audio_paths[i])
-    
 
-    train_audio_dataset = Dataset.from_dict(train_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
-    train_audio_dataloader = DataLoader(train_audio_dataset, batch_size=1, shuffle=False)
-    test_audio_dataset = Dataset.from_dict(test_dict).with_format("torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
-    test_audio_dataloader = DataLoader(test_audio_dataset, batch_size=1, shuffle=False)
+    train_audio_dataset = Dataset.from_dict(train_dict).with_format(
+        "torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
+    train_audio_dataloader = DataLoader(
+        train_audio_dataset, batch_size=1, shuffle=False)
+    test_audio_dataset = Dataset.from_dict(test_dict).with_format(
+        "torch").cast_column('audio', Audio(sampling_rate=SAMPLING_RATE))
+    test_audio_dataloader = DataLoader(
+        test_audio_dataset, batch_size=1, shuffle=False)
 
     return train_audio_dataset, train_audio_dataloader, test_audio_dataset, test_audio_dataloader

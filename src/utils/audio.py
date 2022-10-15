@@ -15,6 +15,7 @@ def get_audio_chunks_jl(signal, frame_size, sampling_rate):
     split_file = split_file[1::]
     return split_file
 
+
 def get_audio_chunks_recola(signal, frame_size, sampling_rate):
     """
     Returns a list of audio chunks from a signal. The chunks are of length
@@ -26,6 +27,7 @@ def get_audio_chunks_recola(signal, frame_size, sampling_rate):
     for i in range(0, len(signal[0][0]), chunk_size):
         split_file.append(signal[0][0][i:chunk_size+i])
     return split_file
+
 
 def get_audio_chunks_semaine(signal, frame_size, sampling_rate):
     """
@@ -39,5 +41,5 @@ def get_audio_chunks_semaine(signal, frame_size, sampling_rate):
         split_file.append(signal[0][0][i:chunk_size+i])
 
     if len(split_file[-1]) < 640:
-        split_file = split_file[0:-1]   
+        split_file = split_file[0:-1]
     return split_file

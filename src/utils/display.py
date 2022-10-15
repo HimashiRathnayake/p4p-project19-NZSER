@@ -46,6 +46,7 @@ def quadrant_chart(input_val: List[float], input_aro: List[float], true_val: Lis
     
 
 if __name__ == '__main__':
+    # Test data for quadrant chart. Creates plot used Mid Year Review video
     input_val=[-1, -0.9, -0.8, -0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
     quadrant_chart(
         # [-1,-.707, 0, .707, 1, .707, -.707, 0, 0],
