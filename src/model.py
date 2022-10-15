@@ -6,23 +6,23 @@ import os
 import torch
 import torch.nn as nn
 import numpy as np
-from datasets import load_dataset, Audio, Dataset
-from transformers import Wav2Vec2CTCTokenizer, Wav2Vec2Processor, EvalPrediction
-import transformers
-from transformers.trainer import Trainer, TrainingArguments
-from transformers.models.wav2vec2.modeling_wav2vec2 import (
-    Wav2Vec2Model,
-    Wav2Vec2PreTrainedModel,
-    Wav2Vec2FeatureExtractor,
-)
-from transformers.integrations import TensorBoardCallback
 import audeer
 import audmetric
 import audiofile
 import typing
+import transformers
+from datasets import load_dataset, Audio, Dataset
+from transformers import Wav2Vec2Processor, EvalPrediction
+from transformers.trainer import Trainer, TrainingArguments
+from transformers.models.wav2vec2.modeling_wav2vec2 import (
+    Wav2Vec2Model,
+    Wav2Vec2PreTrainedModel,
+)
+from transformers.integrations import TensorBoardCallback
 
+# Training and evaluation parameters
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
-
 metrics = {
     'PCC': audmetric.pearson_cc,
     'CCC': audmetric.concordance_cc,
@@ -30,17 +30,17 @@ metrics = {
     # 'MAE': audmetric.mean_absolute_error,
 
 }
-
-# define constants and global variables
-SAMPLING_RATE = 16000
-IS_JL = True
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 log_root = audeer.mkdir('log')
 model_root = audeer.mkdir('model')
+SAMPLING_RATE = 16000
+
+# ----------------- Training -----------------
 
 
 class ConcordanceCorCoeff(torch.nn.Module):
+    r"""
+    Criterion class for the training loss function
+    """
 
     def __init__(self):
         super().__init__()
@@ -85,56 +85,12 @@ class ConcordanceCorCoeff(torch.nn.Module):
         return 1-ccc
 
 
-class RegressionHead(nn.Module):
-    r"""Classification head."""
-
-    def __init__(self, config):
-
-        super().__init__()
-
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.final_dropout)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-
-        x = features
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-
-        return x
-
-
-class EmotionModel(Wav2Vec2PreTrainedModel):
-    r"""Speech emotion classifier."""
-
-    def __init__(self, config):
-
-        super().__init__(config)
-
-        self.config = config
-        self.wav2vec2 = Wav2Vec2ForSpeechClassification(config)
-        self.classifier = RegressionHead(config)
-        self.init_weights()
-
-    def forward(
-            self,
-            input_values,
-    ):
-
-        outputs = self.wav2vec2(input_values)
-        hidden_states = outputs[0]
-        hidden_states = torch.mean(hidden_states, dim=1)
-        logits = self.classifier(hidden_states)
-
-        return hidden_states, logits
-
-
 class Wav2Vec2ClassificationHead(nn.Module):
-    """Head for wav2vec classification task."""
+    r"""
+    Head for wav2vec2 classification task.
+    Uses a projection layer to project the hidden states to the number of classes.
+    Used for finetuning the wav2vec2 model on a downstream classification task.
+    """
 
     def __init__(self, config):
         super().__init__()
@@ -154,11 +110,17 @@ class Wav2Vec2ClassificationHead(nn.Module):
 
 @dataclasses.dataclass
 class SpeechClassifierOutput(transformers.file_utils.ModelOutput):
+    r"""
+    Output type of models that perform speech classification.
+    """
     loss: typing.Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
 
 
 class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
+    r"""
+    Wav2Vec2 model with a classification head on top of the transformer model
+    """
 
     def __init__(self, config):
 
@@ -171,6 +133,9 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
         self.init_weights()
 
     def freeze_feature_extractor(self):
+        r"""
+        Freezes the CNN layers of the model
+        """
         self.wav2vec2.feature_extractor._freeze_parameters()
 
     def pooling(
@@ -178,6 +143,9 @@ class Wav2Vec2ForSpeechClassification(Wav2Vec2PreTrainedModel):
             hidden_states,
             attention_mask,
     ):
+        r"""
+        Pooling method for the hidden states
+        """
         if attention_mask is None:   # For evaluation with batch_size==1
             outputs = torch.mean(hidden_states, dim=1)
         else:
@@ -263,18 +231,43 @@ class DataCollatorCTCWithPadding:
 
 
 class CTCTrainer(Trainer):
+    r"""
+    Trainer for CTC models.
+
+    """
 
     def __init__(
         self,
         criterion: torch.nn.Module,
         **kwargs,
     ):
+        r"""
+        Args:
+            criterion (:obj:`nn.Module`): The CTC loss function.
+            kwargs: The keyword arguments to forward to :obj:`Trainer`. If you're wondering what can be passed here,
+                you can find all the hints in Trainer's docstrings.
+        Example::
+            >>> from datasets import load_metric
+            >>> metric = load_metric("wer")
+            >>> def compute_metrics(pred):
+            ...     pred_logits = pred.predictions
+            ...     pred_ids = np.argmax(pred_logits, axis=-1)
+            ...     pred.label_ids[pred.label_ids == -100] = num_labels
+            ...     wer = metric.compute(predictions=pred_ids, references=pred.label_ids)
+            ...     return {"wer": wer}
+            >>> model = Wav2Vec2ForCTC.from_pretrained(...)
+            >>> criterion = CTCLoss(blank_index=0)
+            >>> train_dataset = ...
+
+        """
         super().__init__(**kwargs)
 
         self.criterion = criterion
 
     def compute_loss(self, model, inputs, return_outputs=False):
-        r"""Compute loss."""
+        r"""
+        Compute loss against the criterion set on instantiation of the CTCTrainer class.
+        """
 
         labels = inputs.pop('labels')
         outputs = model(**inputs)
@@ -304,7 +297,10 @@ class CTCTrainer(Trainer):
 
 
 def compute_metrics(p: EvalPrediction):
-
+    r"""
+    Compute the metrics for the model for an evaluation loop.
+    Metrics are specified by the metrics
+    """
     preds = p.predictions[0] if isinstance(
         p.predictions, tuple) else p.predictions
     preds = np.squeeze(preds)
@@ -331,20 +327,24 @@ def compute_metrics(p: EvalPrediction):
     return scores
 
 
-def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName: str = 'jl', jlTrainDataset: Dataset = None, jlTestDataset: Dataset = None):
-    r"""Train model."""
+def train_model(train_dataset: Dataset, test_dataset: Dataset = None, dataset_Name: str = 'jl', model_path: str = None):
+    r"""
+    Trains specified model on specified train and test datasets.
+    If model_path is not specfied, will load in audEERING model by default
+    """
     # load model from local repo
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = (os.path.dirname(os.path.dirname(file_path)))
-    model_path = os.path.dirname(os.path.realpath(__file__))
-    # model_path = 'facebook/wav2vec2-large-robust'
-    # model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
+    if (model_path == None):
+        model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # Load wrapped feature extractor and tokenizer from processor object
     processor = Wav2Vec2Processor.from_pretrained(
         os.path.dirname(os.path.realpath(__file__)))
+    # Format used by audEERING for their finetuning as of 16-10-2022
     labels = ['LABEL_0', 'LABEL_1', 'LABEL_2']
     model = Wav2Vec2ForSpeechClassification.from_pretrained(
         model_path,
@@ -355,10 +355,14 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
             id2label={i: label for i, label in enumerate(labels)},
             finetuning_task='emotion',
         )
-    ).to(device)
+    ).to(device)  # Move model to GPU if available
 
+    # Create data collator
+    data_collator = DataCollatorCTCWithPadding(processor=processor)
+
+    # Training parameters
     training_args = TrainingArguments(
-        output_dir=root + f"/data/{datasetName}/training/",
+        output_dir=root + f"/data/{dataset_Name}/training/",
         logging_dir=log_root,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
@@ -379,17 +383,10 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
         ignore_data_skip=True,
     )
 
-    # Train model on arousal first then valence
-    emotion = labels
-    print(f"Training model for {emotion}...")
-    # Load model
+    # Freeze layers
     model.freeze_feature_extractor()
-    # model.to(device)
 
-    # Create data collator
-    data_collator = DataCollatorCTCWithPadding(processor=processor)
-
-    # Create trainer
+    # Create trainer with previously defined training arguments
     trainer = CTCTrainer(
         ConcordanceCorCoeff(),
         # Wav2Vec2ForSpeechClassification.from_pretrained(model_name),
@@ -397,8 +394,8 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
         data_collator=data_collator,
         args=training_args,
         compute_metrics=compute_metrics,
-        train_dataset=trainDataset,
-        eval_dataset=testDataset,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
         tokenizer=processor.feature_extractor,
         callbacks=[TensorBoardCallback()],
     )
@@ -407,13 +404,13 @@ def train_model(trainDataset: Dataset, testDataset: Dataset = None, datasetName:
     trainer.train()
     trainer.save_model(
         f'modelSave-{datetime.datetime.now().strftime("%H-%M_%d-%m-%Y")}')
-    # trainer.push_to_hub(
-    #     "Part4Project19/wav2vec2-large-robust-jl-corpus-finetuned")
     return processor, model
 
 
 def load_model(model_path: str = None):
-    # load model from local repo
+    r"""
+    Loads model from local repo or HuggingFace hub
+    """
     if model_path is None:
         model_path = os.path.dirname(os.path.realpath(__file__))
     else:
@@ -423,22 +420,71 @@ def load_model(model_path: str = None):
         model_path = root + model_path
     processor = Wav2Vec2Processor.from_pretrained(model_path)
     print(model_path)
-    # For HASEL if git lfs is not functional
-    # model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim'
+
+    # model_path = 'audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim' # For HASEL if git lfs is not functional
     model = Wav2Vec2ForSpeechClassification.from_pretrained(model_path)
     model.to(device)
-    # train_model(model)
     return processor, model
+
+# ----------------- Testing -----------------
+
+
+class RegressionHead(nn.Module):
+    r"""Classification head from audEERING/wav2vec2-how-to as of 16-10-2022."""
+
+    def __init__(self, config):
+
+        super().__init__()
+
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.final_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features, **kwargs):
+
+        x = features
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+
+        return x
+
+
+class EmotionModel(Wav2Vec2PreTrainedModel):
+    r"""Speech emotion classifier from audEERING/wav2vec2-how-to."""
+
+    def __init__(self, config):
+
+        super().__init__(config)
+
+        self.config = config
+        self.wav2vec2 = Wav2Vec2ForSpeechClassification(config)
+        self.classifier = RegressionHead(config)
+        self.init_weights()
+
+    def forward(
+            self,
+            input_values,
+    ):
+
+        outputs = self.wav2vec2(input_values)
+        hidden_states = outputs[0]
+        hidden_states = torch.mean(hidden_states, dim=1)
+        logits = self.classifier(hidden_states)
+
+        return hidden_states, logits
 
 
 def process_func(
     x: np.ndarray,
     sampling_rate: int,
     embeddings: bool = False,
-    model=None,
+    model: Wav2Vec2ForSpeechClassification = None,
     processor: Wav2Vec2Processor = None,
 ) -> np.ndarray:
-    r"""Predict emotions or extract embeddings from raw audio signal."""
+    r"""Predicts emotions or extracts embeddings from raw audio signal."""
 
     # run through processor to normalize signal
     # always returns a batch, so we just get the first entry
