@@ -335,8 +335,14 @@ def load_jl_results(filename: str):
 
 def display_jl_quadrant_chart(filename: str, start_index: int, end_index: int):
     '''
-    Display the quadrant chart for the JL corpus for the given start and end file numbers
-    Note max end index is 150 as there are 150 files for each speaker in the JL corpus
+    The file name is the name of the txt file containing the results of the JL model.
+    The start index is the index of the first file saved as quadrant chart.
+    The end index is the index of the last file saved as quadrant chart.
+
+    Display the quadrant chart for the JL corpus for the given start and end file numbers.
+
+    Note max end index is 150 as there are 150 files for each speaker in the JL corpus.
+
     The chart is saved as a png in the following directory:
     [REPO_DIRECTORY]/results/jl_results/jl_plts/
     '''
@@ -346,11 +352,11 @@ def display_jl_quadrant_chart(filename: str, start_index: int, end_index: int):
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
 
-    if(start_index < 0 or start_index >= len(jl_results)):
+    if (start_index < 0 or start_index >= len(jl_results)):
         print('Invalid start index')
         return
 
-    if(end_index < start_index or end_index >= len(jl_results)):
+    if (end_index < start_index or end_index >= len(jl_results)):
         print('Invalid end index')
         return
 

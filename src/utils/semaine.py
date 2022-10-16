@@ -205,7 +205,7 @@ def load_semaine_results():
     file_path = os.path.realpath(os.path.join(
         os.getcwd(), os.path.dirname(__file__)))
     root = os.path.dirname(os.path.dirname(file_path))
-    semaine_results_path = root + '/semaine_results/semaine_results.txt'
+    semaine_results_path = root + '/results/semaine_results/semaine_results.txt'
 
     with open(semaine_results_path, 'r', encoding='utf-8') as f:
         for line in f:

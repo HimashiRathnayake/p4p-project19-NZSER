@@ -1,7 +1,7 @@
 import dis
 import numpy as np
 from model import train_model
-from utils.jl import display_jl_quadrant_chart, display_jl_quadrant_chart_sentence, load_jl_sentence, load_jl_wav_files, move_jl_wav_files, test_jl, load_jl_results, test_jl_sentence, transform_jl_dataset
+from utils.jl import display_jl_quadrant_chart, move_jl_wav_files, test_jl, load_jl_results, transform_jl_dataset
 from utils.recola import display_recola_quadrant_chart, recola_dataset, test_recola
 from utils.semaine import interpolate_semaine_annotations, load_semaine_datasets, map_semaine_annotations, plot_semaine_results, test_semaine, transform_semaine_dataset, move_semaine_annotation_files, move_semaine_wav_files
 
@@ -9,9 +9,9 @@ from utils.semaine import interpolate_semaine_annotations, load_semaine_datasets
 # move_jl_wav_files()
 
 # Finetune semaine and then finetune on JL
-trainDataset, testDataset = load_jl_datasets_disk()
+# trainDataset, testDataset = load_jl_datasets_disk()
 # trainDataset, testDataset = load_semaine_datasets()
-train_model(trainDataset=trainDataset, testDataset=testDataset, datasetName="jl")
+# train_model(trainDataset=trainDataset, testDataset=testDataset, datasetName="jl")
 
 # interpolate_semaine_annotations()
 # display_recola_quadrant_chart(0, 21)
@@ -29,7 +29,7 @@ plot_semaine_results(0, 2)
 # load_jl_sentence()
 # load_jl_results()
 
-# display_jl_quadrant_chart(10,20)
+# display_jl_quadrant_chart('jl_results_f1', 10, 20)
 # display_jl_quadrant_chart_sentence()
 
 # print(process_func(signal_dummy, sampling_rate))
