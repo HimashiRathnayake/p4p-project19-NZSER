@@ -335,7 +335,9 @@ def load_jl_results(filename: str):
 
 def display_jl_quadrant_chart(filename: str, start_index: int, end_index: int):
     '''
-    The file name is the name of the txt file containing the results of the JL model.
+    The file name is the name of the txt file containing the results of the JL model. This should be located in the following directory:
+    [REPO_DIRECTORY]/results/jl_results/
+
     The start index is the index of the first file saved as quadrant chart.
     The end index is the index of the last file saved as quadrant chart.
 
@@ -390,11 +392,15 @@ def display_jl_quadrant_chart(filename: str, start_index: int, end_index: int):
 
 def evaluate_single_file_jl(filename: str, processor, model):
     '''
+    Arugments: filename - the name of audio the file to be evaluated
+    processor - the processor used to process the text file
+    model - the model used to predict the arousal and valence values
+
     Evaluates a single file in the JL corpus using the processor and model provided.
     The files output quadrant chart is then saved in the following directory:
     [REPO_DIRECTORY]/results/jl_results/jl_plts/
 
-    This function should be called to create a plot for a single file in the JL corpus
+    This function should be called to create a plot for a single file in the JL corpus. 
     '''
 
     file_path = os.path.realpath(os.path.join(
